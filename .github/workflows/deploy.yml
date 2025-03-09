@@ -1,8 +1,8 @@
-name: Deploy Backend to Digital Ocean
+name: Deploy Server & Client to DigitalOcean
 
 on:
   push:
-    branches: [main]  # Adjust this to your main branch name if different
+    branches: [main]  # Adjust if needed
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
@@ -10,79 +10,82 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-    - name: Build and save Docker images
-      run: |
-        docker compose version  # Verify Docker Compose is installed
-        docker compose build
-        docker images
-        docker save realtime-game-backend-backend:latest -o backend.tar
+      - name: Build and save Docker images
+        run: |
+          docker compose version  # Verify Docker Compose is available
+          docker compose build
+          docker images
+          docker save realtime-game-backend-backend:latest -o backend.tar
 
-    - name: Install SSH key
-      uses: shimataro/ssh-key-action@v2
-      with:
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
-        if_key_exists: replace
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          if_key_exists: replace
 
-    - name: Transfer files to Digital Ocean
-      run: |
-        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-          mkdir -p ~/realtime-game-backend
-        EOF
+      - name: Transfer files to DigitalOcean
+        run: |
+          # Create necessary directories on the droplet
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p ~/realtime-game-backend && mkdir -p /var/www/html"
+          
+          # Transfer project files needed for deployment
+          scp docker-compose.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
+          scp Dockerfile ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
+          scp backend.tar ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
+          scp -r .github/nginx ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
+          scp game-client.html ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
 
-        scp docker-compose.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
-        scp backend.tar ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
-        scp -r .github/nginx ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
-        scp Dockerfile ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
+          # Ensure .env exists on the server (if not already present)
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            if [ ! -f ~/realtime-game-backend/.env ]; then
+              echo "DB_HOST=postgres" > ~/realtime-game-backend/.env
+              echo "DB_PORT=5432" >> ~/realtime-game-backend/.env
+              echo "DB_USER=postgres" >> ~/realtime-game-backend/.env
+              echo "DB_PASSWORD=postgres" >> ~/realtime-game-backend/.env
+              echo "DB_NAME=gamedb" >> ~/realtime-game-backend/.env
+              echo "REDIS_HOST=redis" >> ~/realtime-game-backend/.env
+              echo "REDIS_PORT=6379" >> ~/realtime-game-backend/.env
+            fi
+          EOF
 
+      - name: Deploy on DigitalOcean
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            cd ~/realtime-game-backend
 
-        # Ensure .env exists on the server
-        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-          if [ ! -f ~/realtime-game-backend/.env ]; then
-            echo "DB_HOST=postgres" > ~/realtime-game-backend/.env
-            echo "DB_PORT=5432" >> ~/realtime-game-backend/.env
-            echo "DB_USER=postgres" >> ~/realtime-game-backend/.env
-            echo "DB_PASSWORD=postgres" >> ~/realtime-game-backend/.env
-            echo "DB_NAME=gamedb" >> ~/realtime-game-backend/.env
-            echo "REDIS_HOST=redis" >> ~/realtime-game-backend/.env
-            echo "REDIS_PORT=6379" >> ~/realtime-game-backend/.env
-          fi
-        EOF
+            # Load the Docker image from the tarball
+            docker load -i backend.tar
 
-    - name: Deploy on Digital Ocean
-      run: |
-        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-          cd ~/realtime-game-backend
+            # Extract image ID and tag it properly
+            BACKEND_IMAGE_ID=$(docker images --format "{{.ID}}" | head -n 1)
+            docker tag $BACKEND_IMAGE_ID realtime-game-backend-backend:latest
 
-          # Load the Docker image
-          docker load -i backend.tar
+            # Restart backend using Docker Compose
+            docker compose down
+            docker compose pull
+            docker compose up --build -d
 
-          # Extract the correct image ID and tag it properly
-          BACKEND_IMAGE_ID=$(docker images --format "{{.ID}}" | head -n 1)
-          docker tag $BACKEND_IMAGE_ID realtime-game-backend-backend:latest
+            # Configure Nginx if not already configured (assumes you have an Nginx config in the transferred folder)
+            if [ ! -f /etc/nginx/sites-available/game ]; then
+              sudo cp ~/realtime-game-backend/nginx/game.conf /etc/nginx/sites-available/game
+              sudo ln -sf /etc/nginx/sites-available/game /etc/nginx/sites-enabled/
+              sudo nginx -t && sudo systemctl reload nginx
+            fi
 
-          # Ensure services are properly stopped and restarted
-          docker compose down
-          docker compose pull
-          docker compose up --build -d
+            # Serve the client: copy game-client.html to Nginx web root
+            sudo cp ~/realtime-game-backend/game-client.html /var/www/html/index.html
 
-          # Configure Nginx only if not set up
-          if [ ! -f /etc/nginx/sites-available/game ]; then
-            sudo cp ~/realtime-game-backend/nginx/game.conf /etc/nginx/sites-available/game
-            sudo sed -i 's/DOMAIN_NAME/${{ secrets.DOMAIN_NAME }}/g' /etc/nginx/sites-available/game
-            sudo ln -sf /etc/nginx/sites-available/game /etc/nginx/sites-enabled/
-            sudo nginx -t && sudo systemctl reload nginx
-          fi
-
-          # Set up SSL/TLS if not already configured
-          if [ ! -d /etc/letsencrypt/live/${{ secrets.DOMAIN_NAME }} ]; then
-            echo "Setting up SSL/TLS with Let's Encrypt..."
-            sudo certbot --nginx -d ${{ secrets.DOMAIN_NAME }} --email ${{ secrets.SSL_EMAIL || 'admin@example.com' }} --non-interactive --agree-tos
-          fi
-        EOF
+            # Optionally, if you want to set up SSL/TLS with a custom domain,
+            # uncomment and update the following lines:
+            # if [ ! -d /etc/letsencrypt/live/YOUR_CUSTOM_DOMAIN ]; then
+            #   echo "Setting up SSL/TLS with Let's Encrypt..."
+            #   sudo certbot --nginx -d YOUR_CUSTOM_DOMAIN --email your-email@example.com --non-interactive --agree-tos
+            # fi
+          EOF
