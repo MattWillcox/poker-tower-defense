@@ -1,0 +1,3198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Tower Defense</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .game-area {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .game-content {
+            display: flex;
+            flex-direction: row;
+            flex: 1;
+        }
+        .game-board {
+            flex: 2;
+            width: 500px;
+            height: 800px;
+            min-width: 500px;
+            max-width: 500px;
+            background-color: #27ae60;
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+        .sidebar {
+            flex: 1;
+            min-width: 450px;
+            background-color: white;
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            height: 770px; /* Fixed height of 770px + 30px padding = 800px total */
+            overflow-y: auto;
+        }
+        
+        /* Add styles to ensure proper spacing in the sidebar */
+        .sidebar > h3 {
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .sidebar > .game-layout {
+            flex: 1; /* Take up available space */
+            margin-bottom: 15px;
+        }
+        
+        .card-area {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            min-width: 450px;
+            width: 100%;
+            justify-content: center;
+        }
+        .card {
+            width: 80px;
+            height: 120px;
+            background-color: white;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 5px;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card.held {
+            border: 2px solid gold;
+        }
+        .card-top, .card-bottom {
+            display: flex;
+            justify-content: space-between;
+        }
+        .card-suit {
+            font-size: 24px;
+        }
+        .hearts, .diamonds {
+            color: red;
+        }
+        .clubs, .spades {
+            color: black;
+        }
+        .card-center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+        }
+        .card-center .card-suit {
+            font-size: 36px;
+        }
+        .tower-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tower-option {
+            padding: 10px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .tower-option:hover {
+            background-color: #2980b9;
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .tower-option.selected {
+            background-color: #e74c3c;
+        }
+        .tower-option .tower-stats {
+            position: absolute;
+            bottom: -100%;
+            left: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px;
+            font-size: 10px;
+            transition: bottom 0.3s ease;
+            border-radius: 0 0 5px 5px;
+        }
+        .tower-option:hover .tower-stats {
+            bottom: 0;
+        }
+        .tower {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .tower.basic {
+            background-color: #3498db;
+        }
+        .tower.splash {
+            background-color: #e74c3c;
+        }
+        .tower.sniper {
+            background-color: #f1c40f;
+        }
+        .tower.slow {
+            background-color: #9b59b6;
+        }
+        .enemy {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .enemy.basic {
+            background-color: #e74c3c;
+        }
+        .enemy.fast {
+            background-color: #f39c12;
+        }
+        .enemy.tank {
+            background-color: #7f8c8d;
+        }
+        .enemy.boss {
+            background-color: #2c3e50;
+            width: 40px;
+            height: 40px;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.7);
+            border: 2px solid #e74c3c;
+            animation: boss-pulse 2s infinite alternate;
+        }
+        .health-bar {
+            position: absolute;
+            width: 30px;
+            height: 3px;
+            background-color: #333;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .health-fill {
+            height: 100%;
+            background-color: #e74c3c;
+            width: 100%;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .player-stat {
+            text-align: center;
+        }
+        .player-stat span {
+            display: block;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .wave-timer {
+            text-align: center;
+            margin: 10px 0;
+            padding: 5px;
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .log-area {
+            height: 150px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 20px;
+            border: 1px solid #ddd;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .connection-form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .hand-rank {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 10px;
+            padding: 5px;
+            background-color: #f1c40f;
+            color: white;
+            border-radius: 5px;
+        }
+        .hand-rank.hidden {
+            visibility: hidden;
+            opacity: 0.3;
+        }
+        .path {
+            stroke: rgba(255, 255, 255, 0.5);
+            stroke-width: 2;
+            stroke-dasharray: 5, 5;
+            fill: none;
+        }
+        .tower-attack {
+            position: absolute;
+            background-color: rgba(255, 255, 0, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 5;
+            animation: attack-pulse 0.3s ease-out;
+        }
+        .tower-attack.basic {
+            background-color: rgba(52, 152, 219, 0.7); /* Blue */
+            border-radius: 50%;
+        }
+        .tower-attack.splash {
+            background-color: rgba(231, 76, 60, 0.7); /* Red */
+            border-radius: 5px;
+            transform: rotate(45deg);
+        }
+        .tower-attack.sniper {
+            background-color: rgba(241, 196, 15, 0.7); /* Yellow */
+            border-radius: 0;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+        }
+        .tower-attack.slow {
+            background-color: rgba(155, 89, 182, 0.7); /* Purple */
+            border-radius: 50%;
+            animation: slow-pulse 0.5s ease-out;
+        }
+        @keyframes attack-pulse {
+            0% { transform: scale(0); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+        @keyframes slow-pulse {
+            0% { transform: scale(0); opacity: 0.8; filter: blur(0px); }
+            100% { transform: scale(1.5); opacity: 0; filter: blur(3px); }
+        }
+        .tower-range {
+            position: absolute;
+            border: 1px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+            transform: translate(-50%, -50%);
+            display: none;
+        }
+        .tower:hover .tower-range {
+            display: block;
+        }
+        .tower-preview {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.7;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .tower-preview.basic {
+            background-color: #3498db;
+        }
+        .tower-preview.splash {
+            background-color: #e74c3c;
+        }
+        .tower-preview.sniper {
+            background-color: #f1c40f;
+        }
+        .tower-preview.slow {
+            background-color: #9b59b6;
+        }
+        .tower-preview-range {
+            position: absolute;
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 9;
+        }
+        .path-line {
+            stroke: rgba(255, 255, 255, 0.7);
+            stroke-width: 3;
+            stroke-dasharray: none;
+            fill: none;
+        }
+        .wave-level-display {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            z-index: 10;
+        }
+        .card-back {
+            width: 80px;
+            height: 120px;
+            background-color: #2c3e50;
+            background-image: linear-gradient(45deg, #f44336 0%, #ff9800 20%, #ffeb3b 40%, #4caf50 60%, #2196f3 80%, #9c27b0 100%);
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            backface-visibility: hidden;
+            transform: rotateY(180deg);
+            display: none;
+            padding: 5px; /* Add padding to match the card front */
+        }
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+        .card.flipped .card-back {
+            display: block;
+        }
+        .card.flipped .card-top,
+        .card.flipped .card-center,
+        .card.flipped .card-bottom {
+            display: none;
+        }
+        @keyframes boss-pulse {
+            0% { box-shadow: 0 0 15px rgba(255, 0, 0, 0.7); }
+            100% { box-shadow: 0 0 25px rgba(255, 0, 0, 0.9); }
+        }
+        .wave-level-display.boss-wave {
+            background-color: rgba(231, 76, 60, 0.8);
+            animation: boss-wave-pulse 1s infinite alternate;
+        }
+        @keyframes boss-wave-pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+        .wave-level-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            z-index: 10;
+        }
+        .wave-level-indicator.boss-wave {
+            background-color: rgba(231, 76, 60, 0.8);
+            animation: boss-wave-pulse 1s infinite alternate;
+        }
+        .tower.selected {
+            box-shadow: 0 0 10px 3px rgba(255, 255, 0, 0.7);
+            z-index: 5;
+        }
+        .high-scores {
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 0;
+            height: 100%; /* Make it fill the container height */
+            max-height: none; /* Remove max-height limitation */
+            overflow-y: auto;
+        }
+        .high-scores h3 {
+            text-align: center;
+            margin-top: 0;
+            color: #f1c40f;
+            border-bottom: 1px solid #f1c40f;
+            padding-bottom: 5px;
+        }
+        .high-scores ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .high-score-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .high-score-item:last-child {
+            border-bottom: none;
+        }
+        .high-score-item .rank {
+            font-weight: bold;
+            color: #f1c40f;
+            width: 30px;
+        }
+        .high-score-item .name {
+            flex-grow: 1;
+            text-align: left;
+            padding-left: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .high-score-item .score {
+            font-weight: bold;
+            text-align: right;
+            padding-left: 10px;
+        }
+        .tower-level {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .tower-upgrade-cost {
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            background-color: rgba(255, 215, 0, 0.7);
+            color: black;
+            padding: 1px 3px;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+        .tower-max-level {
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            background-color: rgba(52, 152, 219, 0.7);
+            color: white;
+            padding: 1px 3px;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+        .game-layout {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            flex: 1; /* Make it take available space */
+            min-height: 200px; /* Ensure minimum height */
+        }
+        .game-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .game-sidebar {
+            width: 300px; /* Reduced from 750px to a more reasonable width */
+            flex-shrink: 0; /* Prevent shrinking */
+            display: flex;
+            flex-direction: column;
+            height: 100%; /* Ensure it takes full height */
+        }
+        .username-display {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 100;
+            transition: background-color 0.2s;
+        }
+        .username-display:hover {
+            background-color: rgba(52, 152, 219, 0.8);
+        }
+        .username-edit {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 101;
+            display: none;
+        }
+        .username-edit input {
+            width: 150px;
+            margin-right: 5px;
+        }
+        .high-scores-container {
+            width: 250px;
+            margin-left: 20px;
+            height: 800px; /* Match the total height of sidebar */
+            display: flex;
+            flex-direction: column;
+        }
+        .speed-toggle {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            z-index: 10;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+        }
+        .speed-toggle:hover {
+            background-color: rgba(52, 152, 219, 0.8);
+        }
+        .speed-toggle.active-2x {
+            background-color: rgba(231, 76, 60, 0.8);
+        }
+        .speed-toggle.active-3x {
+            background-color: rgba(155, 89, 182, 0.8);
+        }
+        .speed-toggle-icon {
+            margin-right: 5px;
+            font-size: 14px;
+        }
+        .game-over-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s, visibility 0.5s;
+        }
+        .game-over-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .game-over-container {
+            background-color: #2c3e50;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            color: white;
+            max-width: 500px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.5s;
+        }
+        .game-over-overlay.visible .game-over-container {
+            transform: scale(1);
+        }
+        .game-over-title {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #e74c3c;
+            text-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+        }
+        .game-over-stats {
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        .game-over-stats div {
+            margin: 10px 0;
+        }
+        .game-over-stats span {
+            font-weight: bold;
+            color: #f1c40f;
+        }
+        .high-score-message {
+            font-size: 20px;
+            color: #2ecc71;
+            margin: 20px 0;
+            font-weight: bold;
+            display: none;
+        }
+        .high-score-message.visible {
+            display: block;
+            animation: pulse 1.5s infinite alternate;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+        .restart-button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        .restart-button:hover {
+            background-color: #27ae60;
+            transform: translateY(-3px);
+        }
+        .buildable-area {
+            position: absolute;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Poker Tower Defense</h1>
+            <div class="username-display" id="usernameDisplay">Username: Guest</div>
+            <div class="username-edit" id="usernameEdit">
+                <input type="text" id="usernameEditInput" placeholder="Enter new username">
+                <button id="saveUsernameBtn">Save</button>
+            </div>
+        </header>
+        
+        <div class="connection-form" id="connectionForm">
+            <h2>Connect to Game</h2>
+            <div class="form-group">
+                <label for="playerNameInput">Your Name:</label>
+                <input type="text" id="playerNameInput" placeholder="Enter your name">
+            </div>
+            <button id="connectBtn">Start Game</button>
+        </div>
+        
+        <div class="game-area" style="display: none;" id="gameArea">
+            <div class="game-content">
+                <div class="game-board" id="gameBoard">
+                    <svg width="100%" height="100%" id="pathSvg">
+                        <path id="enemyPath" class="path" d="M0,0"></path>
+                    </svg>
+                    <div class="wave-level-indicator" id="permanentWaveLevel">Wave: <span id="permanentWaveLevelNumber">1</span></div>
+                    <div class="speed-toggle" id="speedToggle">
+                        <span class="speed-toggle-icon">⏩</span>
+                        <span>1x</span>
+                    </div>
+                </div>
+                
+                <div class="sidebar">
+                    <div class="player-info">
+                        <div class="player-stat">
+                            <span id="livesDisplay">20</span>
+                            Lives
+                        </div>
+                        <div class="player-stat">
+                            <span id="goldDisplay">100</span>
+                            Gold
+                        </div>
+                        <div class="player-stat">
+                            <span id="scoreDisplay">0</span>
+                            Score
+                        </div>
+                    </div>
+                    
+                    <div class="wave-timer" id="waveTimer" style="display: none;">
+                        Wave Time: <span id="timerDisplay">60</span>s
+                    </div>
+                    
+                    <div class="wave-level-display" id="waveLevelDisplay" style="display: none; position: relative; top: auto; left: auto; margin-bottom: 10px;">
+                        Wave Level: <span id="waveLevelNumber">1</span>
+                    </div>
+                    
+                    <h3>Your Cards</h3>
+                    <div class="card-area" id="cardArea">
+                        <!-- Cards will be added here -->
+                    </div>
+                    
+                    <div class="hand-rank" id="handRank">
+                        High Card
+                    </div>
+                    
+                    <h3>Towers</h3>
+                    <div class="tower-options">
+                        <div class="tower-option" data-tower="basic">
+                            <strong>Basic</strong><br>
+                            50g
+                            <div class="tower-stats">DMG: 10, RNG: 100, SPD: 1.0</div>
+                        </div>
+                        <div class="tower-option" data-tower="splash">
+                            <strong>Splash</strong><br>
+                            100g
+                            <div class="tower-stats">DMG: 15, RNG: 75, TGT: 3</div>
+                        </div>
+                        <div class="tower-option" data-tower="sniper">
+                            <strong>Sniper</strong><br>
+                            150g
+                            <div class="tower-stats">DMG: 30, RNG: 200, CRIT: 10%</div>
+                        </div>
+                        <div class="tower-option" data-tower="slow">
+                            <strong>Slow</strong><br>
+                            75g
+                            <div class="tower-stats">DMG: 5, RNG: 100, SLOW: 30%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="controls">
+                        <button id="readyBtn">Ready</button>
+                        <div id="gameControls" style="display: none;">
+                            <button id="dealBtn">Deal Cards</button>
+                            <button id="holdBtn">Hold Hand</button>
+                            <button id="waveBtn" disabled>Start Wave</button>
+                        </div>
+                    </div>
+                    
+                    <div class="status" id="statusArea">
+                        Connecting to server...
+                    </div>
+                    
+                    <div class="log-area" id="logArea">
+                        <!-- Log entries will be added here -->
+                    </div>
+                </div>
+                
+                <div class="high-scores-container">
+                    <div class="high-scores" id="highScores">
+                        <h3>High Scores</h3>
+                        <ul id="highScoresList">
+                            <!-- High scores will be added here -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="game-over-overlay" id="gameOverOverlay">
+        <div class="game-over-container">
+            <h1 class="game-over-title">Game Over!</h1>
+            <div class="game-over-stats">
+                <div>Final Score: <span id="finalScore">0</span></div>
+                <div>Waves Completed: <span id="wavesCompleted">0</span></div>
+                <div>Towers Built: <span id="towersBuilt">0</span></div>
+            </div>
+            <div class="high-score-message" id="highScoreMessage">
+                New High Score!
+            </div>
+            <button class="restart-button" id="restartButton">Play Again</button>
+        </div>
+    </div>
+    
+    <script>
+        // Game client
+        class GameClient {
+            constructor() {
+                this.socket = null;
+                this.playerId = '';
+                this.roomId = '';
+                this.playerName = '';
+                this.connected = false;
+                this.selectedTower = null;
+                this.gameState = {
+                    lives: 20,
+                    health: 100,
+                    gold: 100,
+                    score: 0,
+                    cards: [],
+                    towers: [],
+                    enemies: [],
+                    path: [],
+                    round: 0,
+                    phase: 'setup',
+                    waveTimer: 60,
+                    waveTimerActive: false,
+                    waveLevel: 1
+                };
+                this.animationFrameId = null;
+                this.lastFrameTime = 0;
+                this.waveTimerId = null;
+                this.highScores = [];
+                
+                // DOM elements
+                this.gameBoard = document.getElementById('gameBoard');
+                this.cardArea = document.getElementById('cardArea');
+                this.statusArea = document.getElementById('statusArea');
+                this.logArea = document.getElementById('logArea');
+                this.livesDisplay = document.getElementById('livesDisplay');
+                this.goldDisplay = document.getElementById('goldDisplay');
+                this.scoreDisplay = document.getElementById('scoreDisplay');
+                this.handRank = document.getElementById('handRank');
+                this.pathSvg = document.getElementById('pathSvg');
+                this.enemyPathElement = document.getElementById('enemyPath');
+                this.waveTimerElement = document.getElementById('waveTimer');
+                this.timerDisplay = document.getElementById('timerDisplay');
+                this.waveLevelDisplay = document.getElementById('waveLevelDisplay');
+                this.waveLevelNumber = document.getElementById('waveLevelNumber');
+                this.permanentWaveLevel = document.getElementById('permanentWaveLevel');
+                this.permanentWaveLevelNumber = document.getElementById('permanentWaveLevelNumber');
+                this.highScoresList = document.getElementById('highScoresList');
+                this.usernameDisplay = document.getElementById('usernameDisplay');
+                this.usernameEdit = document.getElementById('usernameEdit');
+                this.usernameEditInput = document.getElementById('usernameEditInput');
+                this.saveUsernameBtn = document.getElementById('saveUsernameBtn');
+                this.speedToggle = document.getElementById('speedToggle');
+                
+                // Game speed
+                this.gameSpeedMultiplier = 1;
+                
+                // Game over elements
+                this.gameOverOverlay = document.getElementById('gameOverOverlay');
+                this.finalScore = document.getElementById('finalScore');
+                this.wavesCompleted = document.getElementById('wavesCompleted');
+                this.towersBuilt = document.getElementById('towersBuilt');
+                this.highScoreMessage = document.getElementById('highScoreMessage');
+                this.restartButton = document.getElementById('restartButton');
+                
+                // Game state
+                this.gameOver = false;
+                
+                // Buttons
+                this.readyBtn = document.getElementById('readyBtn');
+                this.dealBtn = document.getElementById('dealBtn');
+                this.waveBtn = document.getElementById('waveBtn');
+                this.connectBtn = document.getElementById('connectBtn');
+                this.holdBtn = document.getElementById('holdBtn');
+                
+                // Connection form
+                this.connectionForm = document.getElementById('connectionForm');
+                this.playerNameInput = document.getElementById('playerNameInput');
+                this.gameArea = document.getElementById('gameArea');
+                
+                // Tower options
+                this.towerOptions = document.querySelectorAll('.tower-option');
+                
+                // Game controls container
+                this.gameControls = document.getElementById('gameControls');
+                
+                // Initialize UI state
+                this.handRank.classList.add('hidden');
+                
+                // Load saved username if available
+                this.loadSavedUsername();
+                
+                this.initEventListeners();
+                this.fetchHighScores();
+            }
+            
+            // Add method to load saved username
+            loadSavedUsername() {
+                const savedUsername = localStorage.getItem('tdp_username');
+                if (savedUsername) {
+                    this.playerName = savedUsername;
+                    this.playerNameInput.value = savedUsername;
+                    this.usernameDisplay.textContent = `Username: ${savedUsername}`;
+                    
+                    // Auto-connect if we have a saved username
+                    this.autoConnect();
+                }
+            }
+            
+            // Add method for auto-connecting with saved username
+            autoConnect() {
+                // Generate a random UUID for the room ID
+                this.roomId = this.generateUUID();
+                // Use player name as player ID
+                this.playerId = this.playerName;
+                
+                // Hide connection form and show game area immediately
+                this.connectionForm.style.display = 'none';
+                this.gameArea.style.display = 'flex';
+                
+                // Connect to the server
+                this.connect();
+            }
+            
+            // Add method to save username
+            saveUsername(username) {
+                if (username && username.trim() !== '') {
+                    this.playerName = username;
+                    localStorage.setItem('tdp_username', username);
+                    this.usernameDisplay.textContent = `Username: ${username}`;
+                    
+                    // If already connected, update player ID
+                    if (this.connected) {
+                        this.log(`Username updated to: ${username}`);
+                    }
+                }
+            }
+            
+            initEventListeners() {
+                // Username display click to show edit form
+                this.usernameDisplay.addEventListener('click', () => {
+                    this.usernameEditInput.value = this.playerName || '';
+                    this.usernameEdit.style.display = 'block';
+                    this.usernameEditInput.focus();
+                });
+                
+                // Save username button
+                this.saveUsernameBtn.addEventListener('click', () => {
+                    const newUsername = this.usernameEditInput.value.trim();
+                    this.saveUsername(newUsername);
+                    this.usernameEdit.style.display = 'none';
+                });
+                
+                // Close username edit when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!this.usernameEdit.contains(e.target) && e.target !== this.usernameDisplay) {
+                        this.usernameEdit.style.display = 'none';
+                    }
+                });
+                
+                // Username edit input enter key
+                this.usernameEditInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        const newUsername = this.usernameEditInput.value.trim();
+                        this.saveUsername(newUsername);
+                        this.usernameEdit.style.display = 'none';
+                    }
+                });
+                
+                // Connect button
+                this.connectBtn.addEventListener('click', () => {
+                    this.playerName = this.playerNameInput.value.trim();
+                    
+                    if (!this.playerName) {
+                        this.log('Please enter your name');
+                        return;
+                    }
+                    
+                    // Save username to local storage
+                    this.saveUsername(this.playerName);
+                    
+                    // Generate a random UUID for the room ID
+                    this.roomId = this.generateUUID();
+                    // Use player name as player ID, or generate a random ID if empty
+                    this.playerId = this.playerName || 'player-' + Math.floor(Math.random() * 10000);
+                    
+                    this.connect();
+                });
+                
+                // Ready button
+                this.readyBtn.addEventListener('click', () => {
+                    this.sendMessage('ready');
+                    
+                    // Hide ready button and status message
+                    this.readyBtn.style.display = 'none';
+                    this.statusArea.style.display = 'none';
+                    
+                    // Show game controls
+                    this.gameControls.style.display = 'flex';
+                    this.gameControls.style.gap = '10px';
+                    this.gameControls.style.justifyContent = 'center';
+                    this.gameControls.style.flexWrap = 'wrap';
+                    
+                    // Enable deal button but disable hold button initially
+                    this.dealBtn.disabled = false;
+                    this.holdBtn.disabled = true;
+                    
+                    // Hide hand rank initially
+                    this.handRank.classList.add('hidden');
+                    
+                    // Update tower options with detailed information
+                    this.updateTowerOptionsInfo();
+                    
+                    this.log('You are ready to play');
+                });
+                
+                // Deal button
+                this.dealBtn.addEventListener('click', () => {
+                    console.log('Deal button clicked');
+                    this.sendMessage('deal_cards');
+                    this.log('Dealing cards...');
+                });
+                
+                // Wave button
+                this.waveBtn.addEventListener('click', () => {
+                    this.sendMessage('start_wave');
+                    this.waveBtn.disabled = true;
+                    this.log('Starting enemy wave...');
+                });
+                
+                // Hold button
+                this.holdBtn.addEventListener('click', () => {
+                    console.log('Hold button clicked');
+                    this.sendMessage('hold_hand');
+                    
+                    // Calculate gold value based on current hand rank
+                    let goldEarned = 0;
+                    const handRankText = this.handRank.textContent;
+                    
+                    // Gold values for different hand ranks
+                    switch (handRankText) {
+                        case 'Royal Flush': goldEarned = 500; break;
+                        case 'Straight Flush': goldEarned = 400; break;
+                        case 'Four of a Kind': goldEarned = 300; break;
+                        case 'Full House': goldEarned = 250; break;
+                        case 'Flush': goldEarned = 200; break;
+                        case 'Straight': goldEarned = 150; break;
+                        case 'Three of a Kind': goldEarned = 100; break;
+                        case 'Two Pair': goldEarned = 75; break;
+                        case 'Pair': goldEarned = 50; break;
+                        case 'High Card': goldEarned = 25; break;
+                        default: goldEarned = 25; // Default to High Card value
+                    }
+                    
+                    // Add gold to player's total
+                    this.gameState.gold += goldEarned;
+                    this.updateStats();
+                    
+                    // Update UI
+                    this.dealBtn.disabled = true;
+                    this.holdBtn.disabled = true;
+                    this.waveBtn.disabled = false;
+                    
+                    this.log(`Holding current hand: ${handRankText}. Earned ${goldEarned} gold!`);
+                });
+                
+                // Tower options
+                this.towerOptions.forEach(option => {
+                    option.addEventListener('click', () => {
+                        // Deselect all tower options
+                        this.towerOptions.forEach(opt => opt.classList.remove('selected'));
+                        
+                        // Select the clicked option
+                        option.classList.add('selected');
+                        this.selectedTower = option.dataset.tower;
+                        this.log(`Selected ${this.selectedTower} tower`);
+                    });
+                });
+                
+                // Game board click for tower placement
+                this.gameBoard.addEventListener('click', (e) => {
+                    if (!this.selectedTower) {
+                        this.log('Select a tower type first');
+                        return;
+                    }
+                    
+                    const rect = this.gameBoard.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    // Check if we're clicking on an existing tower
+                    const clickedElement = document.elementFromPoint(e.clientX, e.clientY);
+                    if (clickedElement && clickedElement.classList.contains('tower')) {
+                        // Don't place a new tower if we clicked on an existing one
+                        return;
+                    }
+                    
+                    // Check if the click is inside the path (in the center area)
+                    if (!this.isInsidePath(x, y)) {
+                        this.log('Towers can only be placed inside the path');
+                        return;
+                    }
+                    
+                    // Check if we have enough gold
+                    const towerCosts = {
+                        'basic': 50,
+                        'splash': 100,
+                        'sniper': 150,
+                        'slow': 75
+                    };
+                    
+                    if (this.gameState.gold < towerCosts[this.selectedTower]) {
+                        this.log(`Not enough gold for ${this.selectedTower} tower`);
+                        return;
+                    }
+                    
+                    this.sendMessage('place_tower', {
+                        towerType: this.selectedTower,
+                        x: x,
+                        y: y
+                    });
+                });
+                
+                // Game board mousemove for tower preview
+                this.gameBoard.addEventListener('mousemove', (e) => {
+                    // Only show preview if a tower is selected
+                    if (!this.selectedTower) {
+                        this.removeTowerPreview();
+                        return;
+                    }
+                    
+                    const rect = this.gameBoard.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    this.showTowerPreview(this.selectedTower, x, y);
+                });
+                
+                // Game board mouseout to remove preview
+                this.gameBoard.addEventListener('mouseout', () => {
+                    this.removeTowerPreview();
+                });
+                
+                // Speed toggle
+                this.speedToggle.addEventListener('click', () => {
+                    if (this.gameSpeedMultiplier === 1) {
+                        this.gameSpeedMultiplier = 2;
+                        this.speedToggle.classList.remove('active-3x');
+                        this.speedToggle.classList.add('active-2x');
+                        this.speedToggle.innerHTML = '<span class="speed-toggle-icon">⏩</span><span>2x</span>';
+                        this.log('Game speed set to 2x');
+                    } else if (this.gameSpeedMultiplier === 2) {
+                        this.gameSpeedMultiplier = 3;
+                        this.speedToggle.classList.remove('active-2x');
+                        this.speedToggle.classList.add('active-3x');
+                        this.speedToggle.innerHTML = '<span class="speed-toggle-icon">⏩</span><span>3x</span>';
+                        this.log('Game speed set to 3x');
+                    } else {
+                        this.gameSpeedMultiplier = 1;
+                        this.speedToggle.classList.remove('active-3x');
+                        this.speedToggle.classList.remove('active-2x');
+                        this.speedToggle.innerHTML = '<span class="speed-toggle-icon">⏩</span><span>1x</span>';
+                        this.log('Game speed set to 1x');
+                    }
+                    
+                    // Update timer speed when game speed changes
+                    this.updateTimerSpeed();
+                });
+                
+                // Restart button
+                this.restartButton.addEventListener('click', () => {
+                    this.restartGame();
+                });
+            }
+            
+            connect() {
+                const wsUrl = `wss://64.23.162.247/ws?playerId=${this.playerId}&roomId=${this.roomId}`;
+                this.socket = new WebSocket(wsUrl);
+                
+                this.socket.onopen = () => {
+                    this.connected = true;
+                    this.log('Connected to server');
+                    this.updateStatus('Connected to server. Click "Ready" to start.');
+                    
+                    // Hide connection form and show game area
+                    this.connectionForm.style.display = 'none';
+                    this.gameArea.style.display = 'flex';
+                    
+                    // Initialize wave level display
+                    this.permanentWaveLevelNumber.textContent = this.gameState.waveLevel;
+                    
+                    // Create initial path
+                    this.createInitialPath();
+                    
+                    // Join room
+                    this.sendMessage('join_room');
+                    
+                    // Fetch high scores
+                    this.fetchHighScores();
+                    
+                    // Start game loop
+                    this.startGameLoop();
+                };
+                
+                this.socket.onmessage = (event) => {
+                    console.log('Raw message received:', event.data);
+                    try {
+                        const message = JSON.parse(event.data);
+                        console.log('Parsed message:', message);
+                        this.handleMessage(message);
+                    } catch (error) {
+                        console.error('Error parsing message:', error);
+                        this.log('Error parsing message from server');
+                    }
+                };
+                
+                this.socket.onclose = () => {
+                    this.connected = false;
+                    this.log('Disconnected from server');
+                    this.updateStatus('Disconnected from server. Refresh to reconnect.');
+                    
+                    // Stop game loop
+                    if (this.animationFrameId) {
+                        cancelAnimationFrame(this.animationFrameId);
+                    }
+                };
+                
+                this.socket.onerror = (error) => {
+                    this.log(`WebSocket error: ${error}`);
+                    this.updateStatus('Connection error. Check console for details.');
+                };
+            }
+            
+            sendMessage(type, payload = {}) {
+                if (!this.connected) {
+                    this.log('Not connected to server');
+                    return;
+                }
+                
+                // For tower upgrades, ensure we're sending the tower type
+                if (type === 'upgrade_tower' && payload.towerType) {
+                    console.log(`Sending upgrade request for tower ${payload.towerId} of type ${payload.towerType}`);
+                }
+                
+                const message = {
+                    type,
+                    payload,
+                    roomId: this.roomId,
+                    senderId: this.playerId
+                };
+                
+                console.log('Sending message:', message);
+                this.socket.send(JSON.stringify(message));
+                this.log(`Sent ${type} message to server`);
+            }
+            
+            handleMessage(message) {
+                console.log('Received message:', message);
+                
+                switch (message.type) {
+                    case 'player_joined':
+                        this.log(`Player ${message.payload.playerId} joined the room`);
+                        break;
+                        
+                    case 'player_left':
+                        this.log(`Player ${message.payload.playerId} left the room`);
+                        break;
+                        
+                    case 'cards_dealt':
+                        this.handleCardsDealt(message.payload);
+                        break;
+                        
+                    case 'tower_placed':
+                        this.handleTowerPlaced(message.payload);
+                        break;
+                        
+                    case 'tower_upgraded':
+                        this.handleTowerUpgraded(message.payload);
+                        break;
+                        
+                    case 'wave_started':
+                        this.handleWaveStarted(message.payload);
+                        break;
+                        
+                    case 'game_state':
+                        this.handleGameState(message.payload);
+                        break;
+                        
+                    case 'high_scores':
+                        this.handleHighScores(message.payload);
+                        break;
+                        
+                    case 'high_score_saved':
+                        this.handleHighScoreSaved(message.payload);
+                        break;
+                        
+                    default:
+                        this.log(`Received message of type: ${message.type}`);
+                }
+            }
+            
+            handleCardsDealt(payload) {
+                // Clear card area first
+                this.cardArea.innerHTML = '';
+                
+                // Unflip all cards when dealing new cards
+                this.gameState.cards = payload.cards;
+                this.renderCards();
+                
+                // Make sure all cards are unflipped when new cards are dealt
+                const cardElements = document.querySelectorAll('.card');
+                cardElements.forEach(card => {
+                    card.classList.remove('flipped');
+                    card.style.transition = 'transform 0.3s ease'; // Ensure transition is set for smooth unflipping
+                });
+                
+                // Update hand rank and make it visible
+                this.handRank.textContent = payload.handRank.name;
+                this.handRank.classList.remove('hidden');
+                
+                // Get max draws (default to 2 for backward compatibility)
+                const maxDraws = payload.maxDraws || 2;
+                
+                // Check if this is the final draw
+                if (payload.drawCount >= maxDraws) {
+                    // Add gold earned
+                    if (payload.goldEarned) {
+                        this.gameState.gold += payload.goldEarned;
+                        this.updateStats();
+                        this.log(`Earned ${payload.goldEarned} gold for ${payload.handRank.name}!`);
+                    }
+                    
+                    // Enable wave button after final hand is dealt
+                    this.waveBtn.disabled = false;
+                    this.dealBtn.disabled = true; // Disable deal button until wave is complete
+                    this.holdBtn.disabled = true; // Disable hold button until next round
+                    
+                    this.log(`Final hand: ${payload.handRank.name}. Click "Start Wave" to begin.`);
+                } else {
+                    // Not the final draw - allow player to hold/discard cards
+                    this.dealBtn.disabled = false;
+                    this.holdBtn.disabled = false; // Enable hold button after first deal
+                    this.waveBtn.disabled = true;
+                    
+                    // Show which draw this is
+                    const drawNumber = payload.drawCount;
+                    const remainingDraws = maxDraws - drawNumber;
+                    
+                    this.log(`Draw ${drawNumber}/${maxDraws}: ${payload.handRank.name}. Select cards to hold, then deal again or hold current hand. (${remainingDraws} draws remaining)`);
+                }
+            }
+            
+            handleTowerPlaced(payload) {
+                const tower = payload.tower;
+                this.gameState.towers.push(tower);
+                this.renderTower(tower);
+                
+                // Update gold
+                this.gameState.gold -= tower.cost;
+                this.updateStats();
+                
+                this.log(`Placed ${tower.type} tower at (${Math.round(tower.x)}, ${Math.round(tower.y)})`);
+            }
+            
+            handleTowerUpgraded(payload) {
+                const upgradedTower = payload.tower;
+                
+                // Find the tower in our game state
+                const towerIndex = this.gameState.towers.findIndex(t => t.id === upgradedTower.id);
+                
+                if (towerIndex !== -1) {
+                    const originalTower = this.gameState.towers[towerIndex];
+                    
+                    // Save the lastAttackTime from the old tower
+                    const oldLastAttackTime = originalTower.lastAttackTime || 0;
+                    
+                    // Save the original position and type
+                    const originalX = originalTower.x;
+                    const originalY = originalTower.y;
+                    const originalType = originalTower.type;
+                    
+                    // Ensure the upgraded tower has the same type as the original
+                    if (upgradedTower.type !== originalType) {
+                        console.warn(`Tower type mismatch in upgrade: original=${originalType}, upgraded=${upgradedTower.type}`);
+                        upgradedTower.type = originalType;
+                    }
+                    
+                    // Update the tower in our game state
+                    upgradedTower.lastAttackTime = oldLastAttackTime;
+                    
+                    // Ensure the position is preserved
+                    upgradedTower.x = originalX;
+                    upgradedTower.y = originalY;
+                    
+                    // Make sure level is properly set (should be incremented by the server, but let's ensure it)
+                    if (upgradedTower.level <= originalTower.level) {
+                        upgradedTower.level = originalTower.level + 1;
+                        console.log(`Corrected tower level from ${originalTower.level} to ${upgradedTower.level}`);
+                    }
+                    
+                    // Enforce level cap at 3
+                    if (upgradedTower.level > 3) {
+                        upgradedTower.level = 3;
+                        console.log(`Capped tower level at 3`);
+                    }
+                    
+                    this.gameState.towers[towerIndex] = upgradedTower;
+                    
+                    console.log(`Tower upgraded: ${upgradedTower.id}, type: ${upgradedTower.type}, level: ${upgradedTower.level}, lastAttackTime preserved: ${upgradedTower.lastAttackTime}, position: (${upgradedTower.x}, ${upgradedTower.y})`);
+                    
+                    // Remove the old tower element
+                    const oldTowerElement = document.querySelector(`.tower[data-id="${upgradedTower.id}"]`);
+                    if (oldTowerElement) {
+                        oldTowerElement.remove();
+                    }
+                    
+                    // Create a new tower element with the upgraded properties
+                    this.renderTower(upgradedTower);
+                    
+                    // Visual upgrade effect at the tower's position
+                    const upgradeEffect = document.createElement('div');
+                    upgradeEffect.className = 'upgrade-effect';
+                    upgradeEffect.style.position = 'absolute';
+                    upgradeEffect.style.width = '40px';
+                    upgradeEffect.style.height = '40px';
+                    upgradeEffect.style.backgroundColor = 'rgba(255, 215, 0, 0.5)'; // Gold color
+                    upgradeEffect.style.borderRadius = '50%';
+                    upgradeEffect.style.left = `${upgradedTower.x}px`;
+                    upgradeEffect.style.top = `${upgradedTower.y}px`;
+                    upgradeEffect.style.transform = 'translate(-50%, -50%)';
+                    upgradeEffect.style.animation = 'upgrade-pulse 1s ease-out';
+                    upgradeEffect.style.zIndex = '3';
+                    
+                    // Add keyframes for upgrade animation if not already added
+                    if (!document.querySelector('#upgrade-animation')) {
+                        const style = document.createElement('style');
+                        style.id = 'upgrade-animation';
+                        style.textContent = `
+                            @keyframes upgrade-pulse {
+                                0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+                                100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+                            }
+                        `;
+                        document.head.appendChild(style);
+                    }
+                    
+                    this.gameBoard.appendChild(upgradeEffect);
+                    
+                    // Remove effect after animation
+                    setTimeout(() => {
+                        upgradeEffect.remove();
+                    }, 1000);
+                    
+                    // Get the upgrade cost from the payload or calculate it
+                    const upgradeCost = payload.upgradeCost || this.calculateUpgradeCost(originalTower);
+                    
+                    // Deduct upgrade cost
+                    this.gameState.gold -= upgradeCost;
+                    this.updateStats();
+                    
+                    // Get the tower stats improvements based on type
+                    const improvements = this.getTowerUpgradeImprovements(upgradedTower);
+                    
+                    this.log(`Tower upgraded to level ${upgradedTower.level}! ${improvements}`);
+                }
+            }
+            
+            handleWaveStarted(payload) {
+                // Unselect all cards when wave starts but DON'T flip them
+                this.gameState.cards.forEach(card => {
+                    card.held = false;
+                });
+                this.renderCards();
+                
+                const wave = payload.wave;
+                this.gameState.enemies = wave.enemies;
+                // Don't update the path from the server, keep our custom path
+                // this.gameState.path = wave.path;
+                this.gameState.round = wave.round;
+                this.gameState.waveStartTime = Date.now();
+                this.gameState.waveLevel = wave.level || this.gameState.round;
+                
+                // Apply more aggressive difficulty scaling based on wave level
+                this.applyDifficultyScaling(this.gameState.waveLevel);
+                
+                // Check if this is a boss wave (every 5 rounds)
+                const isBossWave = this.gameState.waveLevel % 5 === 0;
+                
+                // Update both wave level displays
+                this.waveLevelNumber.textContent = this.gameState.waveLevel;
+                this.permanentWaveLevelNumber.textContent = this.gameState.waveLevel;
+                this.waveLevelDisplay.style.display = 'block';
+                
+                if (isBossWave) {
+                    this.waveLevelDisplay.classList.add('boss-wave');
+                    this.permanentWaveLevel.classList.add('boss-wave');
+                    this.waveLevelDisplay.innerHTML = `BOSS WAVE <span id="waveLevelNumber">${this.gameState.waveLevel}</span>`;
+                    this.permanentWaveLevel.innerHTML = `BOSS WAVE <span id="permanentWaveLevelNumber">${this.gameState.waveLevel}</span>`;
+                } else {
+                    this.waveLevelDisplay.classList.remove('boss-wave');
+                    this.permanentWaveLevel.classList.remove('boss-wave');
+                    this.waveLevelDisplay.innerHTML = `Wave Level: <span id="waveLevelNumber">${this.gameState.waveLevel}</span>`;
+                    this.permanentWaveLevel.innerHTML = `Wave: <span id="permanentWaveLevelNumber">${this.gameState.waveLevel}</span>`;
+                }
+                
+                // Render path - but don't recreate it, just ensure it's visible
+                this.renderPath();
+                
+                // Start wave timer
+                this.startWaveTimer();
+                
+                // Disable deal button during the wave
+                this.dealBtn.disabled = true;
+                this.holdBtn.disabled = true;
+                
+                // Stagger enemy spawns
+                this.gameState.enemies.forEach((enemy, index) => {
+                    // Set initial active state to false for all except the first few
+                    if (index > 2) {
+                        enemy.active = false;
+                        enemy.spawnDelay = Math.floor(index / 3) * 2000; // Spawn in groups of 3, every 2 seconds
+                    }
+                    
+                    // Make boss enemies more visually distinct
+                    if (enemy.type === 'boss') {
+                        enemy.active = true; // Boss is always active from the start
+                        enemy.spawnDelay = 0; // No delay for boss
+                        
+                        // Play a sound or show a special effect for boss spawn
+                        this.showBossWarning();
+                    }
+                });
+                
+                if (isBossWave) {
+                    this.log(`⚠️ BOSS WAVE ${wave.round} STARTED! ⚠️ Defeat the powerful boss to earn bonus rewards!`);
+                } else {
+                    this.log(`Wave ${wave.round} (Level ${this.gameState.waveLevel}) started with ${wave.enemies.length} enemies`);
+                }
+                
+                // Hide hand rank until next deal
+                this.handRank.classList.add('hidden');
+            }
+            
+            // Add a new method to apply difficulty scaling
+            applyDifficultyScaling(waveLevel) {
+                if (!this.gameState.enemies || this.gameState.enemies.length === 0) return;
+                
+                // Calculate scaling factors based on wave level
+                // More aggressive scaling than before
+                const healthMultiplier = 1 + (waveLevel * 0.4); // 40% increase per level
+                const speedMultiplier = 1 + (waveLevel * 0.15); // 15% increase per level
+                const goldMultiplier = 1 + (waveLevel * 0.2); // 20% increase per level
+                
+                // Apply exponential scaling for higher waves
+                const exponentialFactor = Math.pow(1.1, Math.max(0, waveLevel - 10)); // Additional scaling after wave 10
+                
+                console.log(`Wave ${waveLevel} difficulty scaling: Health x${healthMultiplier.toFixed(2)}, Speed x${speedMultiplier.toFixed(2)}, Gold x${goldMultiplier.toFixed(2)}, Exponential x${exponentialFactor.toFixed(2)}`);
+                
+                // Apply scaling to each enemy
+                this.gameState.enemies.forEach(enemy => {
+                    // Store original values if not already stored
+                    if (enemy.originalHealth === undefined) {
+                        enemy.originalHealth = enemy.health;
+                        enemy.originalMaxHealth = enemy.maxHealth;
+                        enemy.originalSpeed = enemy.speed;
+                        enemy.originalGold = enemy.gold;
+                    }
+                    
+                    // Apply scaling with exponential factor for higher waves
+                    const finalHealthMultiplier = healthMultiplier * exponentialFactor;
+                    const finalSpeedMultiplier = speedMultiplier * exponentialFactor;
+                    
+                    // Scale health and max health
+                    enemy.maxHealth = Math.round(enemy.originalMaxHealth * finalHealthMultiplier);
+                    enemy.health = Math.round(enemy.originalHealth * finalHealthMultiplier);
+                    
+                    // Scale speed (but cap it to prevent enemies moving too fast)
+                    enemy.speed = Math.min(enemy.originalSpeed * finalSpeedMultiplier, enemy.originalSpeed * 3);
+                    
+                    // Scale gold reward
+                    enemy.gold = Math.round(enemy.originalGold * goldMultiplier);
+                    
+                    // Special scaling for boss enemies
+                    if (enemy.type === 'boss') {
+                        // Bosses get even more health and gold
+                        enemy.maxHealth = Math.round(enemy.maxHealth * 1.5);
+                        enemy.health = enemy.maxHealth;
+                        enemy.gold = Math.round(enemy.gold * 1.5);
+                    }
+                    
+                    // Special scaling for different enemy types
+                    switch (enemy.type) {
+                        case 'fast':
+                            // Fast enemies get even faster
+                            enemy.speed = Math.min(enemy.speed * 1.2, enemy.originalSpeed * 4);
+                            break;
+                        case 'tank':
+                            // Tank enemies get even more health
+                            enemy.maxHealth = Math.round(enemy.maxHealth * 1.3);
+                            enemy.health = enemy.maxHealth;
+                            break;
+                    }
+                });
+                
+                // Adjust wave timer based on difficulty
+                if (waveLevel > 5) {
+                    // Reduce available time for higher waves
+                    const timeReduction = Math.min(20, Math.floor(waveLevel / 2) * 2); // Reduce by 2 seconds every 2 waves, max 20 seconds
+                    this.gameState.waveTimer = Math.max(30, 60 - timeReduction); // Minimum 30 seconds
+                    this.timerDisplay.textContent = this.gameState.waveTimer;
+                    
+                    console.log(`Wave ${waveLevel} time reduced to ${this.gameState.waveTimer} seconds`);
+                }
+            }
+            
+            handleGameState(payload) {
+                // Update player stats
+                if (payload.players && payload.players[this.playerId]) {
+                    const player = payload.players[this.playerId];
+                    this.gameState.health = player.health;
+                    this.gameState.gold = player.gold;
+                    this.gameState.score = player.score;
+                }
+                
+                // Update game phase
+                this.gameState.phase = payload.phase;
+                
+                // Update stats display
+                this.updateStats();
+                
+                this.log(`Game state updated. Phase: ${payload.phase}, Round: ${payload.round}`);
+            }
+            
+            renderCards() {
+                // Clear card area
+                this.cardArea.innerHTML = '';
+                
+                // Add cards
+                this.gameState.cards.forEach(card => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = `card ${card.held ? 'held' : ''}`;
+                    cardElement.dataset.id = card.id;
+                    
+                    // Determine suit symbol
+                    let suitSymbol = '';
+                    switch (card.suit) {
+                        case 'hearts': suitSymbol = '♥'; break;
+                        case 'diamonds': suitSymbol = '♦'; break;
+                        case 'clubs': suitSymbol = '♣'; break;
+                        case 'spades': suitSymbol = '♠'; break;
+                    }
+                    
+                    cardElement.innerHTML = `
+                        <div class="card-top">
+                            <div>${card.rank}</div>
+                            <div class="card-suit ${card.suit}">${suitSymbol}</div>
+                        </div>
+                        <div class="card-center">
+                            <div class="card-suit ${card.suit}">${suitSymbol}</div>
+                        </div>
+                        <div class="card-bottom">
+                            <div class="card-suit ${card.suit}">${suitSymbol}</div>
+                            <div>${card.rank}</div>
+                        </div>
+                        <div class="card-back"></div>
+                    `;
+                    
+                    // Add click event to hold/discard card
+                    cardElement.addEventListener('click', () => {
+                        // Don't allow clicking if card is flipped
+                        if (cardElement.classList.contains('flipped')) {
+                            return;
+                        }
+                        
+                        if (card.held) {
+                            this.sendMessage('discard_card', { cardId: card.id });
+                            cardElement.classList.remove('held');
+                            card.held = false;
+                            this.log(`Discarded ${card.rank} of ${card.suit}`);
+                        } else {
+                            this.sendMessage('hold_card', { cardId: card.id });
+                            cardElement.classList.add('held');
+                            card.held = true;
+                            this.log(`Held ${card.rank} of ${card.suit}`);
+                        }
+                    });
+                    
+                    this.cardArea.appendChild(cardElement);
+                });
+            }
+            
+            renderTower(tower) {
+                const towerElement = document.createElement('div');
+                towerElement.className = `tower ${tower.type}`;
+                towerElement.dataset.id = tower.id;
+                towerElement.dataset.type = tower.type; // Store tower type in dataset
+                towerElement.style.left = `${tower.x}px`;
+                towerElement.style.top = `${tower.y}px`;
+                towerElement.style.zIndex = '3'; // Base z-index for towers
+                
+                // Add tower level indicator
+                const levelIndicator = document.createElement('div');
+                levelIndicator.className = 'tower-level';
+                levelIndicator.textContent = tower.level;
+                towerElement.appendChild(levelIndicator);
+                
+                // Add upgrade cost or max level indicator
+                if (tower.level < 3) {
+                    // Calculate upgrade cost based on tower type and level
+                    const upgradeCost = this.calculateUpgradeCost(tower);
+                    
+                    const upgradeCostIndicator = document.createElement('div');
+                    upgradeCostIndicator.className = 'tower-upgrade-cost';
+                    upgradeCostIndicator.textContent = `${upgradeCost}g`;
+                    towerElement.appendChild(upgradeCostIndicator);
+                } else {
+                    // Show max level indicator
+                    const maxLevelIndicator = document.createElement('div');
+                    maxLevelIndicator.className = 'tower-max-level';
+                    maxLevelIndicator.textContent = 'MAX';
+                    towerElement.appendChild(maxLevelIndicator);
+                }
+                
+                // Add tower range indicator
+                const rangeIndicator = document.createElement('div');
+                rangeIndicator.className = 'tower-range';
+                rangeIndicator.style.width = `${tower.range * 2}px`;
+                rangeIndicator.style.height = `${tower.range * 2}px`;
+                towerElement.appendChild(rangeIndicator);
+                
+                // Initialize attack properties if not already set
+                if (tower.lastAttackTime === undefined) {
+                    tower.lastAttackTime = 0;
+                }
+                
+                // Add click event to select/upgrade tower
+                towerElement.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent placing a new tower
+                    
+                    // Clear any previous tower selection
+                    document.querySelectorAll('.tower.selected').forEach(t => {
+                        t.classList.remove('selected');
+                    });
+                    
+                    // Select this tower
+                    towerElement.classList.add('selected');
+                    
+                    // If a tower type is already selected in the options
+                    if (this.selectedTower) {
+                        // Check if the selected tower type matches this tower's type
+                        if (this.selectedTower !== tower.type) {
+                            this.log(`Cannot upgrade: Selected tower type (${this.selectedTower}) doesn't match this tower's type (${tower.type})`);
+                            return;
+                        }
+                        
+                        // Check if tower is already at max level
+                        if (tower.level >= 3) {
+                            this.log(`Tower is already at maximum level (3).`);
+                            return;
+                        }
+                        
+                        // Calculate upgrade cost based on tower type and level
+                        const upgradeCost = this.calculateUpgradeCost(tower);
+                        
+                        // Check if player has enough gold for upgrade
+                        if (this.gameState.gold < upgradeCost) {
+                            this.log(`Not enough gold to upgrade tower. Need ${upgradeCost} gold.`);
+                            return;
+                        }
+                        
+                        // Proceed with upgrade
+                        this.sendMessage('upgrade_tower', { 
+                            towerId: tower.id,
+                            towerType: tower.type, // Explicitly send the tower type to ensure correct upgrade
+                            upgradeCost: upgradeCost // Send the calculated upgrade cost
+                        });
+                        this.log(`Upgrading ${tower.type} tower to level ${tower.level + 1}`);
+                        
+                        // Deselect tower type after upgrade
+                        this.towerOptions.forEach(opt => opt.classList.remove('selected'));
+                        this.selectedTower = null;
+                    } else {
+                        // No tower type selected, so select this tower's type
+                        this.selectedTower = tower.type;
+                        
+                        // Highlight the corresponding tower option
+                        this.towerOptions.forEach(opt => {
+                            if (opt.dataset.tower === tower.type) {
+                                opt.classList.add('selected');
+                            } else {
+                                opt.classList.remove('selected');
+                            }
+                        });
+                        
+                        this.log(`Selected ${tower.type} tower for upgrade`);
+                    }
+                });
+                
+                this.gameBoard.appendChild(towerElement);
+            }
+            
+            renderEnemy(enemy) {
+                // Check if enemy element already exists
+                let enemyElement = document.querySelector(`.enemy[data-id="${enemy.id}"]`);
+                
+                if (!enemyElement && enemy.active) {
+                    // Create new enemy element
+                    enemyElement = document.createElement('div');
+                    enemyElement.className = `enemy ${enemy.type}`;
+                    enemyElement.dataset.id = enemy.id;
+                    
+                    // Add health bar
+                    const healthBar = document.createElement('div');
+                    healthBar.className = 'health-bar';
+                    const healthFill = document.createElement('div');
+                    healthFill.className = 'health-fill';
+                    healthBar.appendChild(healthFill);
+                    enemyElement.appendChild(healthBar);
+                    
+                    this.gameBoard.appendChild(enemyElement);
+                }
+                
+                if (enemyElement && enemy.active) {
+                    // Update position
+                    enemyElement.style.left = `${enemy.x}px`;
+                    enemyElement.style.top = `${enemy.y}px`;
+                    
+                    // Update health bar
+                    const healthFill = enemyElement.querySelector('.health-fill');
+                    const healthPercent = (enemy.health / enemy.maxHealth) * 100;
+                    healthFill.style.width = `${healthPercent}%`;
+                } else if (enemyElement && !enemy.active) {
+                    // Remove inactive enemies
+                    enemyElement.remove();
+                }
+            }
+            
+            renderPath() {
+                if (!this.gameState.path || this.gameState.path.length < 2) return;
+                
+                // Clear existing path markers
+                const existingMarkers = document.querySelectorAll('.path-marker');
+                existingMarkers.forEach(marker => marker.remove());
+                
+                // Create SVG path
+                let pathData = `M${this.gameState.path[0].x},${this.gameState.path[0].y}`;
+                
+                for (let i = 1; i < this.gameState.path.length; i++) {
+                    pathData += ` L${this.gameState.path[i].x},${this.gameState.path[i].y}`;
+                }
+                
+                // Update the path element with the new path data and style
+                this.enemyPathElement.setAttribute('d', pathData);
+                this.enemyPathElement.setAttribute('class', 'path-line');
+                
+                // Add visual indicators for path corners
+                this.gameState.path.forEach(point => {
+                    // Skip the last point if it's the same as the first (closed path)
+                    if (point === this.gameState.path[this.gameState.path.length - 1] && 
+                        point.x === this.gameState.path[0].x && 
+                        point.y === this.gameState.path[0].y) {
+                        return;
+                    }
+                    
+                    const marker = document.createElement('div');
+                    marker.className = 'path-marker';
+                    marker.style.position = 'absolute';
+                    marker.style.left = `${point.x}px`;
+                    marker.style.top = `${point.y}px`;
+                    marker.style.width = '8px';
+                    marker.style.height = '8px';
+                    marker.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                    marker.style.borderRadius = '50%';
+                    marker.style.transform = 'translate(-50%, -50%)';
+                    marker.style.zIndex = '2';
+                    
+                    this.gameBoard.appendChild(marker);
+                });
+                
+                // Render the buildable area indicator
+                this.renderBuildableArea();
+            }
+            
+            // Add method to render the buildable area
+            renderBuildableArea() {
+                // Remove any existing buildable area indicator
+                const existingIndicator = document.querySelector('.buildable-area');
+                if (existingIndicator) {
+                    existingIndicator.remove();
+                }
+                
+                // Calculate the buildable area dimensions
+                const pathMargin = 50; // Margin from the edges for the path
+                const towerRadius = 15; // Tower radius (half of the 30px width/height)
+                const safetyMargin = 5; // Additional safety margin
+                
+                // Total margin = path margin + tower radius + safety margin
+                const totalMargin = pathMargin + towerRadius + safetyMargin;
+                
+                // Create the buildable area indicator
+                const buildableArea = document.createElement('div');
+                buildableArea.className = 'buildable-area';
+                buildableArea.style.position = 'absolute';
+                buildableArea.style.left = `${totalMargin}px`;
+                buildableArea.style.top = `${totalMargin}px`;
+                buildableArea.style.width = `${500 - (totalMargin * 2)}px`;
+                buildableArea.style.height = `${800 - (totalMargin * 2)}px`;
+                buildableArea.style.border = '2px dashed rgba(255, 255, 255, 0.3)';
+                buildableArea.style.pointerEvents = 'none'; // Make sure it doesn't interfere with clicks
+                buildableArea.style.zIndex = '1';
+                
+                this.gameBoard.appendChild(buildableArea);
+            }
+            
+            updateStats() {
+                this.livesDisplay.textContent = this.gameState.lives;
+                this.goldDisplay.textContent = this.gameState.gold;
+                this.scoreDisplay.textContent = this.gameState.score;
+            }
+            
+            updateStatus(message) {
+                this.statusArea.textContent = message;
+            }
+            
+            log(message) {
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.textContent = message;
+                this.logArea.appendChild(logEntry);
+                this.logArea.scrollTop = this.logArea.scrollHeight;
+                console.log(message);
+            }
+            
+            startGameLoop() {
+                const gameLoop = (timestamp) => {
+                    // Calculate delta time
+                    const deltaTime = timestamp - this.lastFrameTime;
+                    this.lastFrameTime = timestamp;
+                    
+                    // Debug tower attack times
+                    if (this.gameState.towers && this.gameState.towers.length > 0 && Math.random() < 0.01) {
+                        this.gameState.towers.forEach((tower, index) => {
+                            console.log(`Tower ${index} (${tower.type}, level ${tower.level}): lastAttackTime = ${tower.lastAttackTime}, now = ${timestamp}`);
+                        });
+                    }
+                    
+                    // Update and render enemies
+                    if (this.gameState.enemies && this.gameState.enemies.length > 0) {
+                        // Calculate time since wave started
+                        const timeSinceStart = Date.now() - this.gameState.waveStartTime;
+                        
+                        // Check for enemies to spawn
+                        this.gameState.enemies.forEach(enemy => {
+                            if (!enemy.active && enemy.spawnDelay && timeSinceStart > enemy.spawnDelay) {
+                                enemy.active = true;
+                                enemy.spawnDelay = null; // Don't spawn again
+                                
+                                // Reset to beginning of path
+                                enemy.pathIndex = 0;
+                                enemy.x = this.gameState.path[0].x;
+                                enemy.y = this.gameState.path[0].y;
+                                
+                                this.renderEnemy(enemy);
+                            }
+                        });
+                        
+                        // Update enemy positions
+                        this.gameState.enemies.forEach(enemy => {
+                            if (!enemy.active) return;
+                            
+                            // Get current and next points on the path
+                            if (enemy.pathIndex >= this.gameState.path.length - 1) {
+                                // Instead of deactivating, reset to the beginning of the path
+                                // but only if it's the last point that connects back to the first
+                                const lastPoint = this.gameState.path[this.gameState.path.length - 1];
+                                const firstPoint = this.gameState.path[0];
+                                
+                                if (lastPoint.x === firstPoint.x && lastPoint.y === firstPoint.y) {
+                                    // Reset to beginning of path
+                                    enemy.pathIndex = 0;
+                                    enemy.x = this.gameState.path[0].x;
+                                    enemy.y = this.gameState.path[0].y;
+                                } else {
+                                    // Enemy reached the end of the path
+                                    enemy.active = false;
+                                    
+                                    // Player loses a life
+                                    this.gameState.lives -= 1;
+                                    this.updateStats();
+                                    this.log(`Enemy reached your base! -1 life`);
+                                    
+                                    // Check if game over
+                                    if (this.gameState.lives <= 0) {
+                                        this.gameState.lives = 0; // Ensure lives don't go negative for display
+                                        this.updateStats();
+                                        this.log('Game Over! You ran out of lives.');
+                                        
+                                        // Show game over screen
+                                        this.showGameOver();
+                                    }
+                                }
+                                return;
+                            }
+                            
+                            const currentPoint = this.gameState.path[enemy.pathIndex];
+                            const nextPoint = this.gameState.path[enemy.pathIndex + 1];
+                            
+                            // Calculate direction vector
+                            const dx = nextPoint.x - currentPoint.x;
+                            const dy = nextPoint.y - currentPoint.y;
+                            
+                            // Calculate distance to next point
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            // Normalize direction
+                            const normalizedDx = dx / distance;
+                            const normalizedDy = dy / distance;
+                            
+                            // Calculate movement distance based on speed, time, and game speed multiplier
+                            const moveDistance = (enemy.speed * deltaTime * this.gameSpeedMultiplier) / 16; // Adjust speed
+                            
+                            // Calculate new position
+                            const newX = enemy.x + normalizedDx * moveDistance;
+                            const newY = enemy.y + normalizedDy * moveDistance;
+                            
+                            // Check if enemy reached or passed the next point
+                            const distanceToNext = Math.sqrt(
+                                Math.pow(nextPoint.x - enemy.x, 2) + 
+                                Math.pow(nextPoint.y - enemy.y, 2)
+                            );
+                            
+                            if (distanceToNext <= moveDistance) {
+                                // Move to the next point on the path
+                                enemy.pathIndex++;
+                                enemy.x = nextPoint.x;
+                                enemy.y = nextPoint.y;
+                            } else {
+                                // Update position
+                                enemy.x = newX;
+                                enemy.y = newY;
+                            }
+                            
+                            // Render the enemy
+                            this.renderEnemy(enemy);
+                        });
+                        
+                        // Tower attacks
+                        if (this.gameState.towers && this.gameState.towers.length > 0) {
+                            this.gameState.towers.forEach(tower => {
+                                // Initialize lastAttackTime if not set
+                                if (tower.lastAttackTime === undefined) {
+                                    tower.lastAttackTime = 0;
+                                    console.log(`Initialized lastAttackTime for tower ${tower.id}`);
+                                }
+                                
+                                // Check if tower can attack (based on attack speed and game speed multiplier)
+                                const now = timestamp;
+                                const attackInterval = 1000 / (tower.speed * this.gameSpeedMultiplier); // Convert attacks per second to milliseconds
+                                
+                                if (now - tower.lastAttackTime >= attackInterval) {
+                                    // Find enemies in range
+                                    const enemiesInRange = this.gameState.enemies.filter(enemy => {
+                                        if (!enemy.active) return false;
+                                        
+                                        // Calculate distance between tower and enemy
+                                        const dx = enemy.x - tower.x;
+                                        const dy = enemy.y - tower.y;
+                                        const distance = Math.sqrt(dx * dx + dy * dy);
+                                        
+                                        return distance <= tower.range;
+                                    });
+                                    
+                                    // Attack based on tower type
+                                    if (enemiesInRange.length > 0) {
+                                        tower.lastAttackTime = now;
+                                        
+                                        if (tower.type === 'splash') {
+                                            // Splash tower attacks all enemies in range (up to 3)
+                                            const targets = enemiesInRange.slice(0, 3);
+                                            targets.forEach(enemy => {
+                                                this.attackWithTower(tower, enemy);
+                                            });
+                                        } else if (tower.type === 'sniper') {
+                                            // Sniper tower attacks the enemy with the most health
+                                            const target = enemiesInRange.reduce((prev, current) => 
+                                                (prev.health > current.health) ? prev : current
+                                            );
+                                            this.attackWithTower(tower, target);
+                                        } else {
+                                            // Basic and slow towers attack the first enemy in range
+                                            this.attackWithTower(tower, enemiesInRange[0]);
+                                            
+                                            // Slow tower reduces enemy speed
+                                            if (tower.type === 'slow') {
+                                                enemiesInRange[0].speed *= 0.7; // Reduce speed by 30%
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        
+                        // Check if wave is complete
+                        const activeEnemies = this.gameState.enemies.filter(enemy => enemy.active);
+                        if (activeEnemies.length === 0 && this.gameState.waveTimerActive) {
+                            // Stop the wave timer
+                            clearInterval(this.waveTimerId);
+                            this.waveTimerElement.style.display = 'none';
+                            this.waveLevelDisplay.style.display = 'none'; // Hide wave level display
+                            this.gameState.waveTimerActive = false;
+                            
+                            this.log('Wave complete!');
+                            this.gameState.enemies = [];
+                            
+                            // Award bonus gold for completing the wave
+                            const waveBonus = 50 + (this.gameState.waveLevel * 10);
+                            this.gameState.gold += waveBonus;
+                            this.updateStats();
+                            this.log(`Wave bonus: +${waveBonus} gold`);
+                            
+                            // Flip cards face down with rainbow background when wave completes
+                            setTimeout(() => {
+                                this.flipAllCards();
+                            }, 500); // Small delay to ensure UI updates first
+                            
+                            // Enable deal button for next round
+                            this.dealBtn.disabled = false;
+                        }
+                    }
+                    
+                    this.animationFrameId = requestAnimationFrame(gameLoop);
+                };
+                
+                this.animationFrameId = requestAnimationFrame(gameLoop);
+            }
+            
+            attackWithTower(tower, enemy) {
+                // Create attack visual effect
+                const attackEffect = document.createElement('div');
+                attackEffect.className = `tower-attack ${tower.type}`;
+                
+                // Position at tower center
+                attackEffect.style.left = `${tower.x}px`;
+                attackEffect.style.top = `${tower.y}px`;
+                
+                // Set size based on tower range and level
+                const effectSize = 20 + (tower.level - 1) * 5; // Base size increases with level
+                attackEffect.style.width = `${effectSize}px`;
+                attackEffect.style.height = `${effectSize}px`;
+                
+                // Add to game board
+                this.gameBoard.appendChild(attackEffect);
+                
+                // Create line from tower to enemy
+                const line = document.createElement('div');
+                line.className = 'attack-line';
+                
+                // Calculate angle between tower and enemy
+                const dx = enemy.x - tower.x;
+                const dy = enemy.y - tower.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                
+                // Style the line based on tower type
+                line.style.position = 'absolute';
+                line.style.width = `${distance}px`;
+                line.style.height = '2px';
+                line.style.left = `${tower.x}px`;
+                line.style.top = `${tower.y}px`;
+                line.style.transformOrigin = '0 0';
+                line.style.transform = `rotate(${angle}deg)`;
+                line.style.zIndex = '4';
+                
+                // Customize line based on tower type
+                switch (tower.type) {
+                    case 'basic':
+                        line.style.backgroundColor = 'rgba(52, 152, 219, 0.7)'; // Blue
+                        line.style.opacity = '0.7';
+                        break;
+                    case 'splash':
+                        line.style.backgroundColor = 'rgba(231, 76, 60, 0.7)'; // Red
+                        line.style.opacity = '0.7';
+                        line.style.height = '3px';
+                        break;
+                    case 'sniper':
+                        line.style.backgroundColor = 'rgba(241, 196, 15, 0.9)'; // Yellow
+                        line.style.opacity = '0.9';
+                        line.style.height = '1px';
+                        line.style.boxShadow = '0 0 5px rgba(241, 196, 15, 0.8)';
+                        break;
+                    case 'slow':
+                        line.style.backgroundColor = 'rgba(155, 89, 182, 0.7)'; // Purple
+                        line.style.opacity = '0.7';
+                        line.style.height = '4px';
+                        line.style.filter = 'blur(2px)';
+                        break;
+                }
+                
+                this.gameBoard.appendChild(line);
+                
+                // Remove after animation completes
+                setTimeout(() => {
+                    attackEffect.remove();
+                    line.remove();
+                }, 300);
+                
+                // Apply damage to enemy
+                enemy.health -= tower.damage;
+                
+                // Check if enemy is defeated
+                if (enemy.health <= 0) {
+                    // Create death effect
+                    const deathEffect = document.createElement('div');
+                    deathEffect.className = 'enemy-death';
+                    deathEffect.style.position = 'absolute';
+                    deathEffect.style.left = `${enemy.x}px`;
+                    deathEffect.style.top = `${enemy.y}px`;
+                    
+                    // Special death effect for boss
+                    if (enemy.type === 'boss') {
+                        deathEffect.style.width = '60px';
+                        deathEffect.style.height = '60px';
+                        deathEffect.style.backgroundColor = 'rgba(255, 0, 0, 0.7)';
+                        deathEffect.style.animation = 'boss-death-pulse 1s ease-out';
+                        
+                        // Add keyframes for boss death animation if not already added
+                        if (!document.querySelector('#boss-death-animation')) {
+                            const style = document.createElement('style');
+                            style.id = 'boss-death-animation';
+                            style.textContent = `
+                                @keyframes boss-death-pulse {
+                                    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
+                                    50% { transform: translate(-50%, -50%) scale(2); opacity: 0.7; }
+                                    100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+                                }
+                            `;
+                            document.head.appendChild(style);
+                        }
+                    } else {
+                        deathEffect.style.width = '30px';
+                        deathEffect.style.height = '30px';
+                        deathEffect.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+                        deathEffect.style.animation = 'death-pulse 0.5s ease-out';
+                    }
+                    
+                    deathEffect.style.borderRadius = '50%';
+                    deathEffect.style.transform = 'translate(-50%, -50%)';
+                    deathEffect.style.zIndex = '3';
+                    
+                    // Add keyframes for death animation if not already added
+                    if (!document.querySelector('#death-animation')) {
+                        const style = document.createElement('style');
+                        style.id = 'death-animation';
+                        style.textContent = `
+                            @keyframes death-pulse {
+                                0% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
+                                100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+                            }
+                        `;
+                        document.head.appendChild(style);
+                    }
+                    
+                    this.gameBoard.appendChild(deathEffect);
+                    
+                    // Remove death effect after animation
+                    setTimeout(() => {
+                        deathEffect.remove();
+                    }, enemy.type === 'boss' ? 1000 : 500);
+                    
+                    // Mark enemy as inactive
+                    enemy.active = false;
+                    
+                    // Remove enemy element from DOM
+                    const enemyElement = document.querySelector(`.enemy[data-id="${enemy.id}"]`);
+                    if (enemyElement) {
+                        enemyElement.remove();
+                    }
+                    
+                    // Award gold for defeating enemy
+                    this.gameState.gold += enemy.gold;
+                    
+                    // Increment score - bonus for boss enemies
+                    const scoreValue = enemy.type === 'boss' ? 50 * this.gameState.waveLevel : 10 * this.gameState.waveLevel;
+                    this.gameState.score += scoreValue;
+                    
+                    this.updateStats();
+                    
+                    if (enemy.type === 'boss') {
+                        this.log(`BOSS DEFEATED! +${enemy.gold} gold, +${scoreValue} score`);
+                    } else {
+                        this.log(`Enemy defeated! +${enemy.gold} gold, +${scoreValue} score`);
+                    }
+                } else {
+                    // Update enemy health display
+                    const enemyElement = document.querySelector(`.enemy[data-id="${enemy.id}"]`);
+                    if (enemyElement) {
+                        const healthFill = enemyElement.querySelector('.health-fill');
+                        if (healthFill) {
+                            const healthPercent = (enemy.health / enemy.maxHealth) * 100;
+                            healthFill.style.width = `${healthPercent}%`;
+                        }
+                    }
+                }
+            }
+            
+            showTowerPreview(towerType, x, y) {
+                // Remove any existing preview
+                this.removeTowerPreview();
+                
+                // Create tower preview element
+                const previewElement = document.createElement('div');
+                previewElement.className = `tower-preview ${towerType}`;
+                previewElement.id = 'tower-preview';
+                previewElement.style.left = `${x}px`;
+                previewElement.style.top = `${y}px`;
+                
+                // Get tower range based on type
+                let range = 100; // Default range
+                switch (towerType) {
+                    case 'basic':
+                        range = 100;
+                        break;
+                    case 'splash':
+                        range = 75;
+                        break;
+                    case 'sniper':
+                        range = 200;
+                        break;
+                    case 'slow':
+                        range = 100;
+                        break;
+                }
+                
+                // Create range preview element
+                const rangeElement = document.createElement('div');
+                rangeElement.className = 'tower-preview-range';
+                rangeElement.id = 'tower-preview-range';
+                rangeElement.style.width = `${range * 2}px`;
+                rangeElement.style.height = `${range * 2}px`;
+                rangeElement.style.left = `${x}px`;
+                rangeElement.style.top = `${y}px`;
+                
+                // Add to game board
+                this.gameBoard.appendChild(rangeElement);
+                this.gameBoard.appendChild(previewElement);
+            }
+            
+            removeTowerPreview() {
+                // Remove tower preview
+                const previewElement = document.getElementById('tower-preview');
+                if (previewElement) {
+                    previewElement.remove();
+                }
+                
+                // Remove range preview
+                const rangeElement = document.getElementById('tower-preview-range');
+                if (rangeElement) {
+                    rangeElement.remove();
+                }
+            }
+            
+            // Add method to create initial path
+            createInitialPath() {
+                // Create a simple rectangular path that follows the perimeter of the game board
+                const margin = 50; // Margin from the edges
+                const path = [
+                    {x: margin, y: margin},                  // Top-left
+                    {x: 500 - margin, y: margin},            // Top-right
+                    {x: 500 - margin, y: 800 - margin},      // Bottom-right
+                    {x: margin, y: 800 - margin},            // Bottom-left
+                    {x: margin, y: margin},                  // Back to top-left (complete the rectangle)
+                ];
+                
+                this.gameState.path = path;
+                this.renderPath();
+                this.log('Game board initialized with rectangular path');
+            }
+            
+            startWaveTimer() {
+                // Reset and show timer
+                this.gameState.waveTimer = 60;
+                this.timerDisplay.textContent = this.gameState.waveTimer;
+                this.waveTimerElement.style.display = 'block';
+                this.gameState.waveTimerActive = true;
+                
+                // Clear any existing timer
+                if (this.waveTimerId) {
+                    clearInterval(this.waveTimerId);
+                }
+                
+                // Calculate interval based on game speed
+                const baseInterval = 1000; // 1 second in milliseconds
+                const timerInterval = baseInterval / this.gameSpeedMultiplier;
+                
+                // Start countdown
+                this.waveTimerId = setInterval(() => {
+                    this.gameState.waveTimer--;
+                    this.timerDisplay.textContent = this.gameState.waveTimer;
+                    
+                    // Change color as time runs out
+                    if (this.gameState.waveTimer <= 10) {
+                        this.waveTimerElement.style.backgroundColor = '#c0392b';
+                    }
+                    
+                    // Time's up
+                    if (this.gameState.waveTimer <= 0) {
+                        clearInterval(this.waveTimerId);
+                        this.waveTimerElement.style.display = 'none';
+                        this.waveLevelDisplay.style.display = 'none'; // Hide wave level display
+                        
+                        // Reset permanent wave level display to normal style
+                        this.permanentWaveLevel.classList.remove('boss-wave');
+                        
+                        // Update to the next wave level
+                        const nextWaveLevel = this.gameState.waveLevel + 1;
+                        this.permanentWaveLevel.innerHTML = `Wave: <span id="permanentWaveLevelNumber">${nextWaveLevel}</span>`;
+                        this.permanentWaveLevelNumber = document.getElementById('permanentWaveLevelNumber');
+                        
+                        this.gameState.waveTimerActive = false;
+                        
+                        // Count remaining enemies
+                        const remainingEnemies = this.gameState.enemies.filter(enemy => enemy.active).length;
+                        
+                        if (remainingEnemies > 0) {
+                            // Player loses lives equal to remaining enemies
+                            this.gameState.lives -= remainingEnemies;
+                            this.updateStats();
+                            
+                            this.log(`Time's up! You lost ${remainingEnemies} lives for remaining enemies.`);
+                            
+                            // Check if game over
+                            if (this.gameState.lives <= 0) {
+                                this.gameState.lives = 0; // Ensure lives don't go negative for display
+                                this.updateStats();
+                                this.log('Game Over! You ran out of lives.');
+                                
+                                // Show game over screen
+                                this.showGameOver();
+                            }
+                            
+                            // Clear remaining enemies
+                            this.gameState.enemies.forEach(enemy => {
+                                if (enemy.active) {
+                                    enemy.active = false;
+                                    
+                                    // Remove enemy element from DOM
+                                    const enemyElement = document.querySelector(`.enemy[data-id="${enemy.id}"]`);
+                                    if (enemyElement) {
+                                        enemyElement.remove();
+                                    }
+                                }
+                            });
+                        } else {
+                            this.log('Wave completed successfully within the time limit!');
+                        }
+                        
+                        // Award bonus gold for completing the wave
+                        const waveBonus = 50 + (this.gameState.waveLevel * 10);
+                        this.gameState.gold += waveBonus;
+                        this.updateStats();
+                        this.log(`Wave bonus: +${waveBonus} gold`);
+                        
+                        // Flip cards face down with rainbow background when wave completes
+                        setTimeout(() => {
+                            this.flipAllCards();
+                        }, 500); // Small delay to ensure UI updates first
+                        
+                        // Enable deal button for next round
+                        this.dealBtn.disabled = false;
+                        this.holdBtn.disabled = true; // Disable hold button until first deal of next round
+                        this.handRank.classList.add('hidden'); // Hide hand rank until next deal
+                    }
+                }, timerInterval);
+            }
+            
+            // Add method to update timer interval when game speed changes
+            updateTimerSpeed() {
+                // Only update if timer is active
+                if (this.gameState.waveTimerActive && this.waveTimerId) {
+                    // Clear existing timer
+                    clearInterval(this.waveTimerId);
+                    
+                    // Calculate new interval based on game speed
+                    const baseInterval = 1000; // 1 second in milliseconds
+                    const timerInterval = baseInterval / this.gameSpeedMultiplier;
+                    
+                    // Restart timer with new interval
+                    this.waveTimerId = setInterval(() => {
+                        this.gameState.waveTimer--;
+                        this.timerDisplay.textContent = this.gameState.waveTimer;
+                        
+                        // Change color as time runs out
+                        if (this.gameState.waveTimer <= 10) {
+                            this.waveTimerElement.style.backgroundColor = '#c0392b';
+                        }
+                        
+                        // Time's up
+                        if (this.gameState.waveTimer <= 0) {
+                            clearInterval(this.waveTimerId);
+                            this.waveTimerElement.style.display = 'none';
+                            this.waveLevelDisplay.style.display = 'none'; // Hide wave level display
+                            
+                            // Reset permanent wave level display to normal style
+                            this.permanentWaveLevel.classList.remove('boss-wave');
+                            
+                            // Update to the next wave level
+                            const nextWaveLevel = this.gameState.waveLevel + 1;
+                            this.permanentWaveLevel.innerHTML = `Wave: <span id="permanentWaveLevelNumber">${nextWaveLevel}</span>`;
+                            this.permanentWaveLevelNumber = document.getElementById('permanentWaveLevelNumber');
+                            
+                            this.gameState.waveTimerActive = false;
+                            
+                            // Count remaining enemies
+                            const remainingEnemies = this.gameState.enemies.filter(enemy => enemy.active).length;
+                            
+                            if (remainingEnemies > 0) {
+                                // Player loses lives equal to remaining enemies
+                                this.gameState.lives -= remainingEnemies;
+                                this.updateStats();
+                                
+                                this.log(`Time's up! You lost ${remainingEnemies} lives for remaining enemies.`);
+                                
+                                // Check if game over
+                                if (this.gameState.lives <= 0) {
+                                    this.gameState.lives = 0; // Ensure lives don't go negative for display
+                                    this.updateStats();
+                                    this.log('Game Over! You ran out of lives.');
+                                    
+                                    // Show game over screen
+                                    this.showGameOver();
+                                }
+                                
+                                // Clear remaining enemies
+                                this.gameState.enemies.forEach(enemy => {
+                                    if (enemy.active) {
+                                        enemy.active = false;
+                                        
+                                        // Remove enemy element from DOM
+                                        const enemyElement = document.querySelector(`.enemy[data-id="${enemy.id}"]`);
+                                        if (enemyElement) {
+                                            enemyElement.remove();
+                                        }
+                                    }
+                                });
+                            } else {
+                                this.log('Wave completed successfully within the time limit!');
+                            }
+                            
+                            // Award bonus gold for completing the wave
+                            const waveBonus = 50 + (this.gameState.waveLevel * 10);
+                            this.gameState.gold += waveBonus;
+                            this.updateStats();
+                            this.log(`Wave bonus: +${waveBonus} gold`);
+                            
+                            // Flip cards face down with rainbow background when wave completes
+                            setTimeout(() => {
+                                this.flipAllCards();
+                            }, 500); // Small delay to ensure UI updates first
+                            
+                            // Enable deal button for next round
+                            this.dealBtn.disabled = false;
+                            this.holdBtn.disabled = true; // Disable hold button until first deal of next round
+                            this.handRank.classList.add('hidden'); // Hide hand rank until next deal
+                        }
+                    }, timerInterval);
+                }
+            }
+            
+            // Add a method to show boss warning
+            showBossWarning() {
+                // Create a boss warning overlay
+                const warning = document.createElement('div');
+                warning.className = 'boss-warning';
+                warning.style.position = 'absolute';
+                warning.style.top = '50%';
+                warning.style.left = '50%';
+                warning.style.transform = 'translate(-50%, -50%)';
+                warning.style.color = 'red';
+                warning.style.fontSize = '48px';
+                warning.style.fontWeight = 'bold';
+                warning.style.textShadow = '0 0 10px rgba(255, 0, 0, 0.7)';
+                warning.style.zIndex = '100';
+                warning.style.opacity = '0';
+                warning.style.animation = 'boss-warning 2s ease-in-out';
+                warning.textContent = 'BOSS INCOMING!';
+                
+                // Add keyframes for boss warning animation
+                if (!document.querySelector('#boss-warning-animation')) {
+                    const style = document.createElement('style');
+                    style.id = 'boss-warning-animation';
+                    style.textContent = `
+                        @keyframes boss-warning {
+                            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+                            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+                            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+                
+                this.gameBoard.appendChild(warning);
+                
+                // Remove warning after animation
+                setTimeout(() => {
+                    warning.remove();
+                }, 2000);
+            }
+            
+            // Add method to flip all cards at the end of a wave
+            flipAllCards() {
+                console.log("Flipping all cards at wave end");
+                const cardElements = document.querySelectorAll('.card');
+                
+                // If no cards are present, log it and return
+                if (cardElements.length === 0) {
+                    console.log("No cards found to flip");
+                    return;
+                }
+                
+                cardElements.forEach((card, index) => {
+                    // Add a slight delay to each card for a cascade effect
+                    const delay = index * 100;
+                    
+                    // Set transition with delay
+                    card.style.transition = `transform 0.5s ease ${delay}ms`;
+                    
+                    // Force a reflow to ensure the transition is applied
+                    void card.offsetWidth;
+                    
+                    // Add the flipped class
+                    card.classList.add('flipped');
+                    
+                    console.log(`Flipped card ${index + 1}`);
+                });
+                
+                this.log('Cards flipped - deal new cards for the next round!');
+            }
+            
+            generateUUID() {
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+            
+            // Add these methods for high score functionality
+            fetchHighScores() {
+                console.log('Fetching high scores from server...');
+                
+                // Use API call to fetch high scores
+                fetch('https://64.23.162.247/api/highscores', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('High scores fetched successfully:', data);
+                        // Check if data is null or empty
+                        if (!data || (Array.isArray(data) && data.length === 0)) {
+                            console.log('No high scores returned from server, using local data');
+                            this.loadLocalHighScores();
+                            return;
+                        }
+                        
+                        // Process the data to ensure it has the expected format
+                        this.highScores = data.map(score => ({
+                            name: score.name,
+                            score: score.score,
+                            // Store the timestamp if available but not required for display
+                            created_at: score.created_at || new Date().toISOString()
+                        }));
+                        
+                        this.renderHighScores();
+                    })
+                    .catch(error => {
+                        console.error('Error fetching high scores:', error);
+                        this.log('Error fetching high scores from server. Using local data.');
+                        this.loadLocalHighScores();
+                    });
+            }
+            
+            loadLocalHighScores() {
+                // Use localStorage for high scores as fallback
+                try {
+                    const localHighScores = localStorage.getItem('tdp_highscores');
+                    if (localHighScores) {
+                        this.highScores = JSON.parse(localHighScores);
+                        this.log('Loaded high scores from local storage.');
+                    } else {
+                        // Create some sample high scores if nothing is available
+                        this.highScores = [
+                            { name: "Player 1", score: 1000 },
+                            { name: "Player 2", score: 800 },
+                            { name: "Player 3", score: 600 },
+                            { name: "Player 4", score: 400 },
+                            { name: "Player 5", score: 200 }
+                        ];
+                        this.log('Created sample high scores.');
+                        localStorage.setItem('tdp_highscores', JSON.stringify(this.highScores));
+                    }
+                } catch (e) {
+                    console.error('Error loading local high scores:', e);
+                    this.highScores = [];
+                }
+                
+                this.renderHighScores();
+            }
+            
+            renderHighScores() {
+                // Sort high scores in descending order
+                this.highScores.sort((a, b) => b.score - a.score);
+                
+                // Limit to top 10
+                if (this.highScores.length > 10) {
+                    this.highScores = this.highScores.slice(0, 10);
+                }
+                
+                // Save to localStorage as backup
+                localStorage.setItem('tdp_highscores', JSON.stringify(this.highScores));
+                
+                // Clear the current list
+                this.highScoresList.innerHTML = '';
+                
+                // Add each high score to the list
+                this.highScores.forEach((score, index) => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'high-score-item';
+                    
+                    // Format with rank, name, and score
+                    listItem.innerHTML = `
+                        <span class="rank">#${index + 1}</span>
+                        <span class="name">${score.name}</span>
+                        <span class="score">${score.score}</span>
+                    `;
+                    
+                    this.highScoresList.appendChild(listItem);
+                });
+            }
+            
+            checkHighScore() {
+                // Only proceed if we have a valid score and player name
+                if (!this.gameState.score || !this.playerName) {
+                    return false;
+                }
+                
+                console.log('Checking if score is a high score:', this.gameState.score);
+                
+                // Use API call to save high score
+                fetch('https://64.23.162.247/api/highscores', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: this.playerName,
+                        score: this.gameState.score
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('High score check response:', data);
+                    if (data && data.isHighScore) {
+                        this.log(`Congratulations! You achieved a high score of ${this.gameState.score}!`);
+                        if (this.gameOver) {
+                            this.highScoreMessage.classList.add('visible');
+                        }
+                        // Refresh the high scores list
+                        this.fetchHighScores();
+                        return true;
+                    }
+                    return false;
+                })
+                .catch(error => {
+                    console.error('Error saving high score:', error);
+                    this.log('Error saving high score to server. Checking locally.');
+                    
+                    // Check locally as fallback
+                    const isLocalHighScore = this.checkLocalHighScore();
+                    if (isLocalHighScore) {
+                        this.log(`Congratulations! You achieved a local high score of ${this.gameState.score}!`);
+                        if (this.gameOver) {
+                            this.highScoreMessage.classList.add('visible');
+                        }
+                    }
+                    return isLocalHighScore;
+                });
+                
+                // Return true for now to provide immediate feedback
+                // The actual result will be determined asynchronously
+                return true;
+            }
+            
+            // Add a new method to check high scores locally
+            checkLocalHighScore() {
+                // If we have fewer than 10 scores, it's automatically a high score
+                if (this.highScores.length < 10) {
+                    // Add the new score
+                    this.highScores.push({
+                        name: this.playerName,
+                        score: this.gameState.score
+                    });
+                    
+                    // Re-render and save
+                    this.renderHighScores();
+                    return true;
+                }
+                
+                // Sort scores to find the lowest
+                const sortedScores = [...this.highScores].sort((a, b) => b.score - a.score);
+                const lowestHighScore = sortedScores[9]; // 10th score (index 9)
+                
+                if (this.gameState.score > lowestHighScore.score) {
+                    // Remove the lowest score
+                    sortedScores.pop();
+                    
+                    // Add the new score
+                    sortedScores.push({
+                        name: this.playerName,
+                        score: this.gameState.score
+                    });
+                    
+                    // Update high scores, re-render and save
+                    this.highScores = sortedScores;
+                    this.renderHighScores();
+                    return true;
+                }
+                
+                return false;
+            }
+            
+            // Add method to calculate upgrade cost based on tower type and level
+            calculateUpgradeCost(tower) {
+                // Base costs for each tower type
+                const baseCosts = {
+                    'basic': 25,   // 50% of 50g
+                    'splash': 50,  // 50% of 100g
+                    'sniper': 75,  // 50% of 150g
+                    'slow': 38     // 50% of 75g
+                };
+                
+                // Scaling factors for each tower type (higher for more expensive towers)
+                const scalingFactors = {
+                    'basic': 1.5,   // Basic towers scale moderately
+                    'splash': 1.8,  // Splash towers scale well
+                    'sniper': 2.0,  // Sniper towers scale the best
+                    'slow': 1.6     // Slow towers scale better than basic
+                };
+                
+                // Calculate cost based on base cost, level, and scaling factor
+                const baseCost = baseCosts[tower.type] || 25;
+                const scalingFactor = scalingFactors[tower.type] || 1.5;
+                const levelMultiplier = Math.pow(scalingFactor, tower.level - 1);
+                
+                return Math.round(baseCost * levelMultiplier);
+            }
+            
+            // Add method to get tower upgrade improvements text based on tower type
+            getTowerUpgradeImprovements(tower) {
+                let improvements = '';
+                
+                switch (tower.type) {
+                    case 'basic':
+                        // Basic tower gets balanced improvements to damage, range and speed
+                        const basicDamage = 10 + (tower.level - 1) * 5; // 10, 15, 20
+                        const basicRange = 100 + (tower.level - 1) * 15; // 100, 115, 130
+                        const basicSpeed = (1.0 + (tower.level - 1) * 0.2).toFixed(1); // 1.0, 1.2, 1.4
+                        improvements = `Damage: ${basicDamage}, Range: ${basicRange}, Speed: ${basicSpeed}`;
+                        break;
+                    case 'splash':
+                        // Splash tower gets more targets and area damage
+                        const splashDamage = 15 + (tower.level - 1) * 8; // 15, 23, 31
+                        const splashRange = 75 + (tower.level - 1) * 10; // 75, 85, 95
+                        const splashTargets = Math.min(3 + (tower.level - 1), 5); // 3, 4, 5
+                        improvements = `Splash Damage: ${splashDamage}, Area: ${splashRange}, Targets: ${splashTargets}`;
+                        break;
+                    case 'sniper':
+                        // Sniper tower gets massive damage and range increases
+                        const sniperDamage = 30 + (tower.level - 1) * 15; // 30, 45, 60
+                        const sniperRange = 200 + (tower.level - 1) * 25; // 200, 225, 250
+                        const sniperPenetration = tower.level * 10; // 10%, 20%, 30%
+                        improvements = `Critical Damage: ${sniperDamage}, Range: ${sniperRange}, Penetration: ${sniperPenetration}%`;
+                        break;
+                    case 'slow':
+                        // Slow tower gets better slow effect and duration
+                        const slowDamage = 5 + (tower.level - 1) * 3; // 5, 8, 11
+                        const slowRange = 100 + (tower.level - 1) * 15; // 100, 115, 130
+                        const slowEffect = (0.7 - (tower.level - 1) * 0.1).toFixed(1); // 0.7, 0.6, 0.5 (lower is better)
+                        const slowDuration = tower.level; // 1, 2, 3 seconds
+                        improvements = `Damage: ${slowDamage}, Range: ${slowRange}, Slow Effect: ${slowEffect}x, Duration: ${slowDuration}s`;
+                        break;
+                    default:
+                        improvements = `Damage: ${tower.damage}, Range: ${tower.range}`;
+                }
+                
+                return improvements;
+            }
+            
+            // Add method to update tower options with detailed information
+            updateTowerOptionsInfo() {
+                const towerDetails = {
+                    'basic': {
+                        name: 'Basic',
+                        cost: 50,
+                        description: 'Balanced tower with good range and attack speed',
+                        stats: 'DMG: 10, RNG: 100, SPD: 1.0'
+                    },
+                    'splash': {
+                        name: 'Splash',
+                        cost: 100,
+                        description: 'Attacks multiple enemies in an area',
+                        stats: 'DMG: 15, RNG: 75, TGT: 3'
+                    },
+                    'sniper': {
+                        name: 'Sniper',
+                        cost: 150,
+                        description: 'High damage with long range',
+                        stats: 'DMG: 30, RNG: 200, CRIT: 10%'
+                    },
+                    'slow': {
+                        name: 'Slow',
+                        cost: 75,
+                        description: 'Reduces enemy speed',
+                        stats: 'DMG: 5, RNG: 100, SLOW: 30%'
+                    }
+                };
+                
+                this.towerOptions.forEach(option => {
+                    const towerType = option.dataset.tower;
+                    const details = towerDetails[towerType];
+                    
+                    if (details) {
+                        // Create the main content
+                        const mainContent = document.createElement('div');
+                        mainContent.innerHTML = `
+                            <strong>${details.name}</strong><br>
+                            ${details.cost}g
+                        `;
+                        
+                        // Create the stats element that will show on hover
+                        const statsElement = document.createElement('div');
+                        statsElement.className = 'tower-stats';
+                        statsElement.textContent = details.stats;
+                        
+                        // Clear the option and append the new elements
+                        option.innerHTML = '';
+                        option.appendChild(mainContent);
+                        option.appendChild(statsElement);
+                        
+                        // Add tooltip with description
+                        option.title = details.description;
+                    }
+                });
+            }
+            
+            showGameOver() {
+                if (this.gameOver) return; // Prevent showing multiple times
+                
+                this.gameOver = true;
+                
+                // Update game over stats
+                this.finalScore.textContent = this.gameState.score;
+                this.wavesCompleted.textContent = this.gameState.waveLevel;
+                this.towersBuilt.textContent = this.gameState.towers.length;
+                
+                // Check for high score
+                const isHighScore = this.checkHighScore();
+                
+                // Show high score message if applicable
+                if (isHighScore) {
+                    setTimeout(() => {
+                        this.highScoreMessage.classList.add('visible');
+                    }, 1000);
+                }
+                
+                // Show game over overlay with animation
+                setTimeout(() => {
+                    this.gameOverOverlay.classList.add('visible');
+                }, 500);
+                
+                // Stop game loop
+                if (this.animationFrameId) {
+                    cancelAnimationFrame(this.animationFrameId);
+                    this.animationFrameId = null;
+                }
+                
+                // Stop wave timer
+                if (this.waveTimerId) {
+                    clearInterval(this.waveTimerId);
+                    this.waveTimerId = null;
+                }
+            }
+            
+            restartGame() {
+                // Hide game over overlay
+                this.gameOverOverlay.classList.remove('visible');
+                this.highScoreMessage.classList.remove('visible');
+                
+                // Reset game state
+                this.gameOver = false;
+                this.gameState = {
+                    lives: 20,
+                    health: 100,
+                    gold: 100,
+                    score: 0,
+                    cards: [],
+                    towers: [],
+                    enemies: [],
+                    path: [],
+                    round: 0,
+                    phase: 'setup',
+                    waveTimer: 60,
+                    waveTimerActive: false,
+                    waveLevel: 1
+                };
+                
+                // Reset UI
+                this.updateStats();
+                this.cardArea.innerHTML = '';
+                this.handRank.classList.add('hidden');
+                this.waveTimerElement.style.display = 'none';
+                this.waveLevelDisplay.style.display = 'none';
+                
+                // Reset wave level display
+                this.permanentWaveLevelNumber.textContent = this.gameState.waveLevel;
+                this.permanentWaveLevel.classList.remove('boss-wave');
+                this.permanentWaveLevel.innerHTML = `Wave: <span id="permanentWaveLevelNumber">1</span>`;
+                this.permanentWaveLevelNumber = document.getElementById('permanentWaveLevelNumber');
+                
+                // Clear game board
+                const towers = document.querySelectorAll('.tower');
+                towers.forEach(tower => tower.remove());
+                
+                const enemies = document.querySelectorAll('.enemy');
+                enemies.forEach(enemy => enemy.remove());
+                
+                const effects = document.querySelectorAll('.tower-attack, .enemy-death, .upgrade-effect');
+                effects.forEach(effect => effect.remove());
+                
+                // Reset path
+                this.createInitialPath();
+                
+                // Reset speed
+                this.gameSpeedMultiplier = 1;
+                this.speedToggle.classList.remove('active-2x');
+                this.speedToggle.classList.remove('active-3x');
+                this.speedToggle.innerHTML = '<span class="speed-toggle-icon">⏩</span><span>1x</span>';
+                
+                // Enable deal button
+                this.dealBtn.disabled = false;
+                this.holdBtn.disabled = true;
+                this.waveBtn.disabled = true;
+                
+                // Clear log
+                this.logArea.innerHTML = '';
+                this.log('Game restarted. Good luck!');
+                
+                // Restart game loop
+                this.lastFrameTime = 0;
+                this.startGameLoop();
+                
+                // Fetch high scores again
+                this.fetchHighScores();
+            }
+            
+            // Add handlers for high score WebSocket messages
+            handleHighScores(payload) {
+                if (payload.scores && Array.isArray(payload.scores)) {
+                    this.highScores = payload.scores;
+                    this.log('Received high scores from server');
+                    this.renderHighScores();
+                }
+            }
+            
+            handleHighScoreSaved(payload) {
+                if (payload.isHighScore) {
+                    this.log(`Congratulations! Your score of ${this.gameState.score} was saved as a high score!`);
+                    if (this.gameOver) {
+                        this.highScoreMessage.classList.add('visible');
+                    }
+                    // Refresh high scores
+                    this.fetchHighScores();
+                }
+            }
+            
+            // Add method to check if a point is inside the path (in the center area)
+            isInsidePath(x, y) {
+                if (!this.gameState.path || this.gameState.path.length < 4) return false;
+                
+                // For a rectangular path, we can simply check if the point is inside the rectangle
+                const pathMargin = 50; // Margin from the edges for the path
+                const towerRadius = 15; // Tower radius (half of the 30px width/height)
+                const safetyMargin = 5; // Additional safety margin
+                
+                // Total margin = path margin + tower radius + safety margin
+                const totalMargin = pathMargin + towerRadius + safetyMargin;
+                
+                // Check if the point is inside the rectangular path with the additional margin for tower radius
+                return x > totalMargin && 
+                       x < (500 - totalMargin) && 
+                       y > totalMargin && 
+                       y < (800 - totalMargin);
+            }
+        }
+        
+        // Initialize game client when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameClient = new GameClient();
+        });
+    </script>
+</body>
+</html> 
