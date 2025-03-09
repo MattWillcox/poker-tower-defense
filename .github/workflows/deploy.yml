@@ -1,0 +1,72 @@
+name: Deploy Backend to Digital Ocean
+
+on:
+  push:
+    branches: [ main ]  # Adjust this to your main branch name if different
+  workflow_dispatch:    # Allow manual triggering
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Build and export Docker images
+      run: |
+        docker-compose build
+        docker save realtime-game-backend-backend:latest > backend.tar
+      
+    - name: Install SSH key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+        if_key_exists: replace
+        
+    - name: Transfer files to Digital Ocean
+      run: |
+        # Create a deployment directory
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p ~/realtime-game-backend"
+        
+        # Transfer docker-compose.yml
+        scp docker-compose.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
+        
+        # Transfer .env file
+        scp .env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
+        
+        # Transfer Docker images
+        scp backend.tar ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
+        
+        # Transfer nginx configuration for CORS and WebSocket proxying
+        scp -r .github/nginx ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
+        
+        # Transfer SSL setup script
+        scp scripts/setup-ssl.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "chmod +x ~/realtime-game-backend/setup-ssl.sh"
+      
+    - name: Deploy on Digital Ocean
+      run: |
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ~/realtime-game-backend && \
+        docker load < backend.tar && \
+        docker-compose down && \
+        docker-compose up -d && \
+        
+        # Set up Nginx configuration if it doesn't exist
+        if [ ! -f /etc/nginx/sites-available/game ]; then
+          sudo cp ~/realtime-game-backend/nginx/game.conf /etc/nginx/sites-available/game && \
+          sudo sed -i 's/DOMAIN_NAME/${{ secrets.DOMAIN_NAME }}/g' /etc/nginx/sites-available/game && \
+          sudo ln -sf /etc/nginx/sites-available/game /etc/nginx/sites-enabled/ && \
+          sudo nginx -t && \
+          sudo systemctl reload nginx
+        fi && \
+        
+        # Set up SSL/TLS if not already set up
+        if [ ! -d /etc/letsencrypt/live/${{ secrets.DOMAIN_NAME }} ]; then
+          echo 'Setting up SSL/TLS with Let\'s Encrypt...' && \
+          ./setup-ssl.sh ${{ secrets.DOMAIN_NAME }} ${{ secrets.SSL_EMAIL || 'admin@example.com' }}
+        fi" 

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Tower Defense</title>
+    <!-- Copy the entire content of game-client.html here, but we'll modify the WebSocket and API URLs -->
+    <script>
+        // This script will be executed when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Replace all WebSocket and API URLs in the page
+            const backendUrl = "BACKEND_URL"; // This will be replaced with your actual backend URL
+            
+            // Find and replace all WebSocket URLs
+            const htmlContent = document.documentElement.innerHTML;
+            const updatedWsContent = htmlContent.replace(/ws:\/\/localhost:3000\/ws/g, `ws://${backendUrl}/ws`);
+            
+            // Find and replace all API URLs
+            const updatedApiContent = updatedWsContent.replace(/http:\/\/localhost:3000\/api/g, `http://${backendUrl}/api`);
+            
+            // Update the page content
+            document.documentElement.innerHTML = updatedApiContent;
+            
+            // Initialize the game client
+            if (typeof GameClient !== 'undefined') {
+                window.gameClient = new GameClient();
+            }
+        });
+    </script>
+</head>
+<body>
+    <!-- The content will be replaced by the script above -->
+    <div style="text-align: center; margin-top: 50px;">
+        <h1>Loading Poker Tower Defense...</h1>
+        <p>If the game doesn't load, please check your connection to the backend server.</p>
+    </div>
+</body>
+</html> 

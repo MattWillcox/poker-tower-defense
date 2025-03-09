@@ -1,0 +1,29 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]  # Adjust this to your main branch name if different
+  workflow_dispatch:    # Allow manual triggering
+
+jobs:
+  deploy-to-github-pages:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up environment
+      run: |
+        mkdir -p docs
+        chmod +x scripts/generate-github-pages.sh
+      
+    - name: Generate GitHub Pages version
+      run: |
+        ./scripts/generate-github-pages.sh ${{ secrets.BACKEND_URL || secrets.DOMAIN_NAME || secrets.SSH_HOST }}
+      
+    - name: Deploy to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        folder: docs
+        branch: gh-pages 
