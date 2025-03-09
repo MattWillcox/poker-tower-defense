@@ -2,8 +2,8 @@ name: Deploy Backend to Digital Ocean
 
 on:
   push:
-    branches: [ main ]  # Adjust this to your main branch name if different
-  workflow_dispatch:    # Allow manual triggering
+    branches: [main]  # Adjust this to your main branch name if different
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   deploy:
@@ -12,115 +12,79 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
-      
-    - name: Install Docker Compose
+
+    - name: Set up Docker Compose
+      uses: docker/setup-qemu-action@v2  # Ensures compatibility
+      with:
+        platforms: linux/amd64,linux/arm64
+
+    - name: Build and save Docker images
       run: |
-        sudo curl -L "https://github.com/docker/compose/releases/download/v2.18.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-        docker-compose --version
-      
-    - name: Build and export Docker images
-      run: |
-        # Build the Docker image with a specific tag
         docker-compose build
-        
-        # List images to verify they were built correctly
         docker images
-        
-        # Get the image ID of the backend service
-        BACKEND_IMAGE_ID=$(docker images -q realtime-game-backend-backend)
-        
-        if [ -z "$BACKEND_IMAGE_ID" ]; then
-          echo "Error: Backend image not found. Check the image name in docker-compose.yml."
-          
-          # Try to find the correct image name
-          echo "Available images:"
-          docker images
-          
-          # Try with a different naming pattern
-          BACKEND_IMAGE_ID=$(docker images | grep backend | awk '{print $3}' | head -n 1)
-          
-          if [ -z "$BACKEND_IMAGE_ID" ]; then
-            echo "Could not find any backend image. Exiting."
-            exit 1
-          else
-            echo "Found backend image with ID: $BACKEND_IMAGE_ID"
-          fi
-        fi
-        
-        # Save the image with its ID
-        docker save $BACKEND_IMAGE_ID > backend.tar
-      
+        docker save realtime-game-backend-backend:latest -o backend.tar
+
     - name: Install SSH key
       uses: shimataro/ssh-key-action@v2
       with:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
         if_key_exists: replace
-        
+
     - name: Transfer files to Digital Ocean
       run: |
-        # Create a deployment directory
-        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p ~/realtime-game-backend"
-        
-        # Transfer docker-compose.yml
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          mkdir -p ~/realtime-game-backend
+        EOF
+
         scp docker-compose.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
-        
-        # Transfer .env file (create a default one if it doesn't exist)
-        if [ ! -f .env ]; then
-          echo "Creating default .env file"
-          echo "DB_HOST=postgres" > .env
-          echo "DB_PORT=5432" >> .env
-          echo "DB_USER=postgres" >> .env
-          echo "DB_PASSWORD=postgres" >> .env
-          echo "DB_NAME=gamedb" >> .env
-          echo "REDIS_HOST=redis" >> .env
-          echo "REDIS_PORT=6379" >> .env
-        fi
-        scp .env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
-        
-        # Transfer Docker images
         scp backend.tar ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
-        
-        # Transfer nginx configuration for CORS and WebSocket proxying
         scp -r .github/nginx ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
-        
-        # Transfer SSL setup script
-        scp scripts/setup-ssl.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
-        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "chmod +x ~/realtime-game-backend/setup-ssl.sh"
-      
+
+        # Ensure .env exists on the server
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          if [ ! -f ~/realtime-game-backend/.env ]; then
+            echo "DB_HOST=postgres" > ~/realtime-game-backend/.env
+            echo "DB_PORT=5432" >> ~/realtime-game-backend/.env
+            echo "DB_USER=postgres" >> ~/realtime-game-backend/.env
+            echo "DB_PASSWORD=postgres" >> ~/realtime-game-backend/.env
+            echo "DB_NAME=gamedb" >> ~/realtime-game-backend/.env
+            echo "REDIS_HOST=redis" >> ~/realtime-game-backend/.env
+            echo "REDIS_PORT=6379" >> ~/realtime-game-backend/.env
+          fi
+        EOF
+
     - name: Deploy on Digital Ocean
       run: |
-        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ~/realtime-game-backend && \
-        # Load the Docker image
-        docker load < backend.tar && \
-        
-        # Get the image ID that was just loaded
-        BACKEND_IMAGE_ID=\$(docker images | grep -v REPOSITORY | head -n 1 | awk '{print \$3}') && \
-        
-        # Tag the image with the correct name
-        docker tag \$BACKEND_IMAGE_ID realtime-game-backend-backend:latest && \
-        
-        # Stop and remove existing containers
-        docker-compose down && \
-        
-        # Start the containers
-        docker-compose up -d && \
-        
-        # Set up Nginx configuration if it doesn't exist
-        if [ ! -f /etc/nginx/sites-available/game ]; then
-          sudo cp ~/realtime-game-backend/nginx/game.conf /etc/nginx/sites-available/game && \
-          sudo sed -i 's/DOMAIN_NAME/${{ secrets.DOMAIN_NAME }}/g' /etc/nginx/sites-available/game && \
-          sudo ln -sf /etc/nginx/sites-available/game /etc/nginx/sites-enabled/ && \
-          sudo nginx -t && \
-          sudo systemctl reload nginx
-        fi && \
-        
-        # Set up SSL/TLS if not already set up
-        if [ ! -d /etc/letsencrypt/live/${{ secrets.DOMAIN_NAME }} ]; then
-          echo 'Setting up SSL/TLS with Let\'s Encrypt...' && \
-          ./setup-ssl.sh ${{ secrets.DOMAIN_NAME }} ${{ secrets.SSL_EMAIL || 'admin@example.com' }}
-        fi" 
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          cd ~/realtime-game-backend
+
+          # Load the Docker image
+          docker load -i backend.tar
+
+          # Extract the correct image ID and tag it properly
+          BACKEND_IMAGE_ID=$(docker images --format "{{.ID}}" | head -n 1)
+          docker tag $BACKEND_IMAGE_ID realtime-game-backend-backend:latest
+
+          # Ensure services are properly stopped and restarted
+          docker-compose down
+          docker-compose pull
+          docker-compose up --build -d
+
+          # Configure Nginx only if not set up
+          if [ ! -f /etc/nginx/sites-available/game ]; then
+            sudo cp ~/realtime-game-backend/nginx/game.conf /etc/nginx/sites-available/game
+            sudo sed -i 's/DOMAIN_NAME/${{ secrets.DOMAIN_NAME }}/g' /etc/nginx/sites-available/game
+            sudo ln -sf /etc/nginx/sites-available/game /etc/nginx/sites-enabled/
+            sudo nginx -t && sudo systemctl reload nginx
+          fi
+
+          # Set up SSL/TLS if not already configured
+          if [ ! -d /etc/letsencrypt/live/${{ secrets.DOMAIN_NAME }} ]; then
+            echo "Setting up SSL/TLS with Let's Encrypt..."
+            sudo certbot --nginx -d ${{ secrets.DOMAIN_NAME }} --email ${{ secrets.SSL_EMAIL || 'admin@example.com' }} --non-interactive --agree-tos
+          fi
+        EOF
