@@ -33,13 +33,15 @@ jobs:
       - name: Transfer files to DigitalOcean
         run: |
           # Create necessary directories on the droplet
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p ~/realtime-game-backend && mkdir -p /var/www/html"
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p ~/realtime-game-backend && sudo mkdir -p /var/www/html"
           
           # Transfer project files needed for deployment
           scp docker-compose.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
           scp Dockerfile ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
           scp backend.tar ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
           scp -r .github/nginx ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
+          
+          # Transfer game client HTML
           scp game-client.html ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
 
           # Ensure .env exists on the server (if not already present)
@@ -72,20 +74,41 @@ jobs:
             docker compose pull
             docker compose up --build -d
 
-            # Configure Nginx if not already configured (assumes you have an Nginx config in the transferred folder)
+            # Configure Nginx
             if [ ! -f /etc/nginx/sites-available/game ]; then
               sudo cp ~/realtime-game-backend/nginx/game.conf /etc/nginx/sites-available/game
+              # Replace DOMAIN_NAME placeholder with actual domain or IP
+              sudo sed -i "s/DOMAIN_NAME/${{ secrets.DOMAIN_NAME || secrets.SSH_HOST }}/g" /etc/nginx/sites-available/game
               sudo ln -sf /etc/nginx/sites-available/game /etc/nginx/sites-enabled/
+              # Remove default site if it exists
+              sudo rm -f /etc/nginx/sites-enabled/default
               sudo nginx -t && sudo systemctl reload nginx
             fi
 
-            # Serve the client: copy game-client.html to Nginx web root
+            # Prepare game client HTML
+            # 1. Copy to web root
             sudo cp ~/realtime-game-backend/game-client.html /var/www/html/index.html
+            
+            # 2. Update WebSocket and API URLs to use the server's domain/IP
+            SERVER_URL="${{ secrets.DOMAIN_NAME || secrets.SSH_HOST }}"
+            sudo sed -i "s|ws://localhost:3000|ws://$SERVER_URL|g" /var/www/html/index.html
+            sudo sed -i "s|http://localhost:3000|http://$SERVER_URL|g" /var/www/html/index.html
+            
+            # 3. Set proper permissions
+            sudo chown www-data:www-data /var/www/html/index.html
+            sudo chmod 644 /var/www/html/index.html
 
-            # Optionally, if you want to set up SSL/TLS with a custom domain,
-            # uncomment and update the following lines:
-            # if [ ! -d /etc/letsencrypt/live/YOUR_CUSTOM_DOMAIN ]; then
-            #   echo "Setting up SSL/TLS with Let's Encrypt..."
-            #   sudo certbot --nginx -d YOUR_CUSTOM_DOMAIN --email your-email@example.com --non-interactive --agree-tos
-            # fi
+            # Set up SSL/TLS if domain is configured
+            if [[ -n "${{ secrets.DOMAIN_NAME }}" && ! -d /etc/letsencrypt/live/${{ secrets.DOMAIN_NAME }}" ]]; then
+              echo "Setting up SSL/TLS with Let's Encrypt..."
+              sudo apt-get update
+              sudo apt-get install -y certbot python3-certbot-nginx
+              sudo certbot --nginx -d ${{ secrets.DOMAIN_NAME }} --email ${{ secrets.SSL_EMAIL || 'admin@example.com' }} --non-interactive --agree-tos
+              
+              # Update client HTML to use HTTPS after SSL is set up
+              sudo sed -i "s|http://$SERVER_URL|https://$SERVER_URL|g" /var/www/html/index.html
+              sudo sed -i "s|ws://$SERVER_URL|wss://$SERVER_URL|g" /var/www/html/index.html
+            fi
+            
+            echo "Deployment complete! Your game should be available at http://$SERVER_URL"
           EOF
