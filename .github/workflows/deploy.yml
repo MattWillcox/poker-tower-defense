@@ -24,8 +24,35 @@ jobs:
       
     - name: Build and export Docker images
       run: |
+        # Build the Docker image with a specific tag
         docker-compose build
-        docker save realtime-game-backend-backend:latest > backend.tar
+        
+        # List images to verify they were built correctly
+        docker images
+        
+        # Get the image ID of the backend service
+        BACKEND_IMAGE_ID=$(docker images -q realtime-game-backend-backend)
+        
+        if [ -z "$BACKEND_IMAGE_ID" ]; then
+          echo "Error: Backend image not found. Check the image name in docker-compose.yml."
+          
+          # Try to find the correct image name
+          echo "Available images:"
+          docker images
+          
+          # Try with a different naming pattern
+          BACKEND_IMAGE_ID=$(docker images | grep backend | awk '{print $3}' | head -n 1)
+          
+          if [ -z "$BACKEND_IMAGE_ID" ]; then
+            echo "Could not find any backend image. Exiting."
+            exit 1
+          else
+            echo "Found backend image with ID: $BACKEND_IMAGE_ID"
+          fi
+        fi
+        
+        # Save the image with its ID
+        docker save $BACKEND_IMAGE_ID > backend.tar
       
     - name: Install SSH key
       uses: shimataro/ssh-key-action@v2
@@ -42,7 +69,17 @@ jobs:
         # Transfer docker-compose.yml
         scp docker-compose.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
         
-        # Transfer .env file
+        # Transfer .env file (create a default one if it doesn't exist)
+        if [ ! -f .env ]; then
+          echo "Creating default .env file"
+          echo "DB_HOST=postgres" > .env
+          echo "DB_PORT=5432" >> .env
+          echo "DB_USER=postgres" >> .env
+          echo "DB_PASSWORD=postgres" >> .env
+          echo "DB_NAME=gamedb" >> .env
+          echo "REDIS_HOST=redis" >> .env
+          echo "REDIS_PORT=6379" >> .env
+        fi
         scp .env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/realtime-game-backend/
         
         # Transfer Docker images
@@ -58,8 +95,19 @@ jobs:
     - name: Deploy on Digital Ocean
       run: |
         ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ~/realtime-game-backend && \
+        # Load the Docker image
         docker load < backend.tar && \
+        
+        # Get the image ID that was just loaded
+        BACKEND_IMAGE_ID=\$(docker images | grep -v REPOSITORY | head -n 1 | awk '{print \$3}') && \
+        
+        # Tag the image with the correct name
+        docker tag \$BACKEND_IMAGE_ID realtime-game-backend-backend:latest && \
+        
+        # Stop and remove existing containers
         docker-compose down && \
+        
+        # Start the containers
         docker-compose up -d && \
         
         # Set up Nginx configuration if it doesn't exist

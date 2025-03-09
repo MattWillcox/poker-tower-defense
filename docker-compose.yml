@@ -2,7 +2,10 @@ version: "3.8"
 
 services:
   backend:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: realtime-game-backend-backend:latest
     ports:
       - "3000:3000"
     depends_on:

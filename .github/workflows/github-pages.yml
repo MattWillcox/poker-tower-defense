@@ -18,15 +18,11 @@ jobs:
         mkdir -p docs
         mkdir -p scripts
         
-        # Create generate-github-pages.sh if it doesn't exist
-        if [ ! -f scripts/generate-github-pages.sh ]; then
-          echo "Creating generate-github-pages.sh script..."
-          cat > scripts/generate-github-pages.sh << 'EOF'
+        # Create a simple script to generate GitHub Pages content
+        cat > scripts/generate-github-pages.sh << 'EOFSCRIPT'
 #!/bin/bash
 
 # This script generates a GitHub Pages version of the game client
-
-# Create docs directory if it doesn't exist
 mkdir -p docs
 
 # Get the backend URL from the command line argument or use a default
@@ -146,8 +142,7 @@ sed -i "s|http://localhost:3000|https://${BACKEND_URL}|g" docs/index.html
 echo "GitHub Pages version generated in the docs directory with backend URL: ${BACKEND_URL}"
 echo "Your game will be available at https://your-username.github.io/your-repo-name/"
 echo "The client will connect to your backend using secure WebSocket (WSS) and HTTPS."
-EOF
-        fi
+EOFSCRIPT
         
         chmod +x scripts/generate-github-pages.sh
       
