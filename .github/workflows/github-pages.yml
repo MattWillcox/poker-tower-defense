@@ -22,9 +22,9 @@ jobs:
           if [ -f game-client.html ]; then
             echo "Found game-client.html, preparing for deployment..."
             cp game-client.html docs/index.html
-            
+
             # Replace localhost URLs with the backend URL
-            BACKEND_URL="${{ secrets.BACKEND_URL || secrets.DOMAIN_NAME || secrets.SSH_HOST }}"
+            BACKEND_URL="***"
             if [ -n "$BACKEND_URL" ]; then
               echo "Configuring backend URL: $BACKEND_URL"
               sed -i "s|ws://localhost:3000|wss://$BACKEND_URL|g" docs/index.html
@@ -35,51 +35,51 @@ jobs:
           else
             echo "Warning: game-client.html not found. Creating a placeholder page."
             cat > docs/index.html << 'EOF'
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Poker Tower Defense</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        background: #f0f0f0;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        height: 100vh;
-                        margin: 0;
-                    }
-                    .container {
-                        background: white;
-                        padding: 2rem;
-                        border-radius: 8px;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                        text-align: center;
-                        max-width: 600px;
-                    }
-                    h1 { color: #333; margin-bottom: 1rem; }
-                    .status { color: #666; margin: 1rem 0; }
-                    .backend-url { 
-                        background: #f8f8f8;
-                        padding: 0.5rem;
-                        border-radius: 4px;
-                        margin: 1rem 0;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>Poker Tower Defense</h1>
-                    <p class="status">⚠️ The game client is being set up. Please check back later.</p>
-                    <div class="backend-url">
-                        Backend URL: <strong>${{ secrets.BACKEND_URL || secrets.DOMAIN_NAME || secrets.SSH_HOST }}</strong>
-                    </div>
-                </div>
-            </body>
-            </html>
-            EOF
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Poker Tower Defense</title>
+              <style>
+                  body {
+                      font-family: Arial, sans-serif;
+                      background: #f0f0f0;
+                      display: flex;
+                      justify-content: center;
+                      align-items: center;
+                      height: 100vh;
+                      margin: 0;
+                  }
+                  .container {
+                      background: white;
+                      padding: 2rem;
+                      border-radius: 8px;
+                      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                      text-align: center;
+                      max-width: 600px;
+                  }
+                  h1 { color: #333; margin-bottom: 1rem; }
+                  .status { color: #666; margin: 1rem 0; }
+                  .backend-url { 
+                      background: #f8f8f8;
+                      padding: 0.5rem;
+                      border-radius: 4px;
+                      margin: 1rem 0;
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>Poker Tower Defense</h1>
+                  <p class="status">⚠️ The game client is being set up. Please check back later.</p>
+                  <div class="backend-url">
+                      Backend URL: <strong>***</strong>
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
           fi
 
           # Create a .nojekyll file to prevent GitHub Pages from processing the site with Jekyll
@@ -124,6 +124,7 @@ jobs:
           </body>
           </html>
           EOF
+
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
